@@ -16,6 +16,7 @@ The project workspace is the product goal. It builds on verified imports and the
 
 ## Features
 
+- [Projects and shoots](docs/USAGE.md#organize-a-project) with ordered shoots, notes, and references to verified Library files.
 - [Camera connections](docs/COMPATIBILITY.md) for discovery, live view, shooting controls, media browsing, and proxy playback where the adapter supports them.
 - [Verified imports](docs/USAGE.md#import-files) to the phone album or a selected folder, with duplicate detection and resumable camera downloads where supported.
 - [Video editing](docs/USAGE.md#edit-a-video) with in-preview crop, filmstrip trimming, full-resolution frame extraction, `.cube` LUTs, and AVC or 10-bit HEVC export.

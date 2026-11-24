@@ -20,6 +20,7 @@ import app.cameraderie.R
 import app.cameraderie.gallery.media.DocumentImportActivity
 import app.cameraderie.gallery.media.edit.VideoEditorActivity
 import app.cameraderie.gallery.media.edit.VerifiedVideo
+import app.cameraderie.projects.ProjectMedia
 import app.cameraderie.sony.SonyGalleryLayout
 import app.cameraderie.sony.SonyImportPreferences
 import app.cameraderie.sony.SonyScreenProtection
@@ -63,6 +64,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
     private var showing=emptyList<ImportHistoryEntry>()
     private val selected=linkedSetOf<String>()
     private var selecting=false
+    private val pickingForProject by lazy { intent.getBooleanExtra(PICK_FOR_PROJECT, false) }
     private var loading=false
     private var busy=false
     private lateinit var emptyImport: android.widget.Button
@@ -74,7 +76,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState)
         ui=UiKit(this);repository=createRepository();loader=ImportedMediaLoader(this,repository.local)
-        selecting=savedInstanceState?.getBoolean("selecting") ?: false
+        selecting = pickingForProject || savedInstanceState?.getBoolean("selecting") == true
         selected.addAll(savedInstanceState?.getStringArrayList("selection").orEmpty().take(500))
         mode=runCatching { SonyGalleryLayout.Mode.valueOf(savedInstanceState?.getString("layout").orEmpty()) }.getOrDefault(mode)
         filter=savedInstanceState?.getInt("filter")?.coerceIn(0,2) ?: 0
@@ -91,7 +93,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
         }
         toolbar=MaterialToolbar(this).apply {
             title="Library";subtitle="On this phone";setTitleTextColor(ui.tone.text);setSubtitleTextColor(ui.tone.secondary)
-            setNavigationIcon(R.drawable.ic_arrow_back);navigationContentDescription="Back to Cameraderie";setNavigationOnClickListener { finish() }
+            setNavigationIcon(R.drawable.ic_arrow_back);navigationContentDescription=if(pickingForProject) "Back to project" else "Back to Cameraderie";setNavigationOnClickListener { finish() }
             menu.add("Import from phone or SD card").setOnMenuItemClickListener {
                 openFileImport()
                 true
@@ -102,10 +104,18 @@ open class ImportedImagesActivity:CameraderieActivity() {
                 iconTintList=android.content.res.ColorStateList.valueOf(ui.tone.text)
                 setOnMenuItemClickListener { if(!loading && !busy) { selecting=!selecting;if(!selecting)selected.clear();refreshSelection() };true }
             }
-            shareButton=menu.add("Share selected").apply {
-                setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM)
+            shareButton=menu.add(if (pickingForProject) "Add to project" else "Share selected").apply {
+                setShowAsAction(if (pickingForProject) android.view.MenuItem.SHOW_AS_ACTION_ALWAYS else android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM)
                 iconTintList=android.content.res.ColorStateList.valueOf(ui.tone.text)
-                setOnMenuItemClickListener { if(selected.isNotEmpty())prepareAction(records.filter { it.draft.id in selected },true);true }
+                setOnMenuItemClickListener {
+                    if (selected.isNotEmpty()) {
+                        if (pickingForProject) {
+                            setResult(android.app.Activity.RESULT_OK, Intent().putStringArrayListExtra(PICKED_MEDIA, ArrayList(selected)))
+                            finish()
+                        } else prepareAction(records.filter { it.draft.id in selected }, true)
+                    }
+                    true
+                }
             }
             clearButton=menu.add("Clear selection").apply { setOnMenuItemClickListener { selected.clear();refreshSelection();true } }
             menu.add("Filter").setOnMenuItemClickListener { chooseFilter();true }
@@ -156,8 +166,9 @@ open class ImportedImagesActivity:CameraderieActivity() {
                 val rows=repository.list { !live(token) || Thread.currentThread().isInterrupted }
                 main.post {
                     if(!live(token))return@post
-                    records=rows;unavailable.clear();selected.retainAll(rows.map { it.draft.id }.toSet());loading=false;progress.visibility=View.GONE
-                    val count = if (rows.size == 1) "1 saved import" else "${rows.size} saved imports"
+                    records = if (pickingForProject) rows.filter { ProjectMedia.from(it) != null } else rows
+                    unavailable.clear();selected.retainAll(records.map { it.draft.id }.toSet());loading=false;progress.visibility=View.GONE
+                    val count = if (records.size == 1) "1 saved import" else "${records.size} saved imports"
                     status.text = when {
                         !recovery.ran -> "$count · Import in progress"
                         recovery.unresolved > 0 -> "$count · ${recovery.unresolved} unfinished imports"
@@ -175,7 +186,11 @@ open class ImportedImagesActivity:CameraderieActivity() {
     }
     private fun applyFilter() {
         showing=records.filter { row -> when(filter) { 1 -> row.receipt?.mime?.startsWith("image/")==true;2 -> row.receipt?.mime?.startsWith("video/")==true;else -> true } }
-        empty.text=if(records.isEmpty()) "No saved imports yet." else "No imports match this filter."
+        empty.text = when {
+            records.isEmpty() && pickingForProject -> "No verified imports yet."
+            records.isEmpty() -> "No saved imports yet."
+            else -> "No imports match this filter."
+        }
         empty.visibility=if(!loading && showing.isEmpty())View.VISIBLE else View.GONE
         emptyImport.visibility = if (!loading && records.isEmpty()) View.VISIBLE else View.GONE
         adapter.notifyDataSetChanged();refreshSelection()
@@ -201,8 +216,16 @@ open class ImportedImagesActivity:CameraderieActivity() {
         toolbar.subtitle=if(selecting) "Library" else when(filter) { 1 -> "Photos and images · on this phone";2 -> "Videos · on this phone";else -> "On this phone" }
         selectButton.isEnabled=!loading && !busy && records.isNotEmpty()
         selectButton.contentDescription=if(loading)"Select files, available when local history finishes loading" else if(selecting)"Done selecting files. ${selected.size} selected. Maximum 500 files." else "Select files"
+        selectButton.isVisible = !pickingForProject
         shareButton.isVisible=selecting;clearButton.isVisible=selecting
-        shareButton.title="Share";shareButton.setIcon(R.drawable.ic_share);shareButton.contentDescription="Share ${selected.size} selected files";shareButton.isEnabled=!loading && !busy && selected.isNotEmpty() && selected.none { it in unavailable }
+        if (pickingForProject) {
+            toolbar.title = if (selected.isEmpty()) "Select media" else "${selected.size} selected"
+            toolbar.subtitle = "Add to project"
+            shareButton.contentDescription = "Add ${selected.size} selected files to project"
+        } else {
+            shareButton.title="Share";shareButton.setIcon(R.drawable.ic_share);shareButton.contentDescription="Share ${selected.size} selected files"
+        }
+        shareButton.isEnabled=!loading && !busy && selected.isNotEmpty() && selected.none { it in unavailable }
         clearButton.isEnabled=!busy && selected.isNotEmpty();layoutButton.isEnabled=!busy
         adapter.notifyItemRangeChanged(0,showing.size,selectionPayload)
     }
@@ -445,5 +468,10 @@ open class ImportedImagesActivity:CameraderieActivity() {
     }
     override fun onDestroy() {
         generation++;cancelTask();detail?.dismiss();loader.close();recycler.adapter=null;worker.shutdownNow();main.removeCallbacksAndMessages(null);super.onDestroy()
+    }
+
+    internal companion object {
+        const val PICK_FOR_PROJECT = "app.cameraderie.PICK_FOR_PROJECT"
+        const val PICKED_MEDIA = "app.cameraderie.PICKED_MEDIA"
     }
 }

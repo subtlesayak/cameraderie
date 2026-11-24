@@ -32,6 +32,7 @@
         <activity android:name=".ui.AboutActivity" android:exported="false" />
         <activity android:name=".ui.NoticesActivity" android:exported="false" />
         <activity android:name=".LibraryTransferActivity" android:exported="false" />
+        <activity android:name=".projects.ProjectsActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

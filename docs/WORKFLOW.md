@@ -21,9 +21,13 @@ Both shoots belong to one project. You can review the whole trip, open just the 
 
 ## Acceptance
 
-- Create **Himalayan Diaries** with **Day 1 · Departure** and **Day 2 · Mountain pass**. Use verified media from the a6400, Action 6, and X4, plus audio, a ride track, and shoot notes.
+- Create **Malaysian Diaries** with **Day 1 · Departure** and **Day 2 · Mountain pass**. Use verified media from the a6400, Action 6, and X4, plus audio, a ride track, and shoot notes.
 - Review both shoots offline after restarting the app. Confirm that project and shoot views show the correct media and that filters work across camera brands.
 - Reassign a verified original between shoots and confirm that its filename, SHA-256, and Library receipt are unchanged.
 - Open a selected take from a shoot, export a separate file, and verify its association with the shoot and original. Check that a verified backup can be read from the selected destination.
+
+## Emulator verification
+
+On an Android 12 emulator, Cameraderie created Malaysian Diaries and both shoots, assigned a verified JPEG and MP4, moved the JPEG to Day 2, and reopened the project offline after a process restart. Independent readback confirmed both original hashes and Library receipts were unchanged. This check used synthetic media.
 
 See the [user guide](USAGE.md) for workflows available in the app and the [compatibility matrix](COMPATIBILITY.md) for connection and hardware test results.

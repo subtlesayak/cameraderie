@@ -24,6 +24,15 @@ Choose the adapter in Cameraderie and follow its pairing or connection prompt. T
 2. In Cameraderie, open **Open Sony USB viewfinder**, tap **Connect over USB**, and grant Android access. The viewfinder shows the shooting controls the camera reports for its current settings.
 3. When recording, tap **Stop recording** and wait for the camera to report idle. To browse files on the card over USB, disconnect, change the camera to MTP, and reconnect via **Connect a USB camera**.
 
+## Organize a project
+
+1. Open **Projects** and create a project. Use **New shoot** for a day, location, or sequence. Project and shoot notes are saved on the phone.
+2. Use **Add from Library** to choose verified imports. Add files from the project view to keep them unassigned, or add them inside a shoot to assign them there.
+3. Tap a project file and choose **Move to shoot** to change its assignment. Use the shoot’s menu to edit its notes or move it earlier or later in the project.
+4. Tap a file to open it or edit a supported original video. Project and shoot assignments preserve the original Library files and their receipts.
+
+The [Himalayan Diaries example](WORKFLOW.md#himalayan-diaries) shows how to organize media from several cameras in one project.
+
 ## Edit a video
 
 Open a verified original from **Library** and tap **Edit video**. Set the crop directly in the preview and drag the two trim handles to choose the range. Use **Find LUT** to choose a `.cube` file and **Video format** to select the encoder. The app shows Main 10 availability for the device and source. **Export MP4** publishes a separate file. When a compatible checkpoint is available, **Resume export** continues it. You can start a fresh export if the checkpoint fails verification.

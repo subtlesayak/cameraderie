@@ -28,6 +28,7 @@ import app.cameraderie.gallery.media.DocumentImportActivity
 import app.cameraderie.gallery.media.GalleryMediaActivity
 import app.cameraderie.gallery.media.history.ImportedImagesActivity
 import app.cameraderie.gallery.net.CameraWifiAccess
+import app.cameraderie.projects.ProjectsActivity
 import app.cameraderie.sony.SonyGalleryActivity
 import app.cameraderie.sony.SonyImportPreferences
 import app.cameraderie.sony.SonyViewfinderActivity
@@ -95,7 +96,10 @@ class MainActivity : CameraderieActivity() {
             WindowInsets.CONSUMED
         }
         ui.add(body, ui.text("Cameraderie", UiKit.Type.display, bold = true).apply { isAccessibilityHeading = true }, 20)
-        val library = ui.card(body, "Library", prominent = true)
+        val projects = ui.card(body, "Projects", prominent = true)
+        ui.add(projects, ui.action("Open projects", primary = true) { open(ProjectsActivity::class.java) })
+
+        val library = ui.card(body, "Library")
         ui.add(library, ui.action("Open library", primary = true) { open(ImportedImagesActivity::class.java) })
         ui.add(library, ui.action("Import from files or a memory card") { open(DocumentImportActivity::class.java) }, 8)
         ui.add(library, ui.action("Relink OpenGrip library") { open(LibraryTransferActivity::class.java) }, 8)
