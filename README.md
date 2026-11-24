@@ -46,7 +46,7 @@ The USB adapter discovers standard PTP/MTP interfaces across camera brands. Wire
 - **Build.** 602 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
 - **Sony α7 III.** On a Galaxy S24 FE running Android 17, Cameraderie connected by Wi-Fi QR, browsed 789 entries, and reconnected from its saved camera entry. Original, 2M, and VGA JPEG imports and a 720p video proxy passed independent saved-file checksum checks over Wi-Fi. USB PC Remote displayed live view and verified autofocus, recording start and stop, and the gallery lock during recording. USB MTP imported a 4K MP4 with the original filename, capture date, and verified checksum. [Hardware test details](docs/COMPATIBILITY.md#sony-α7-iii-hardware-test)
 
-- **DJI Osmo Action 6.** A retained original was cropped, trimmed, and graded to Rec.709 on the Galaxy S24 FE. The separate 10-bit HEVC export passed independent video, audio, and timestamp checks. [Editor test details](docs/COMPATIBILITY.md#action-6-editor-verification)
+- **DJI Osmo Action 6.** Cameraderie verified Bluetooth shooting controls, the gallery lock during recording, both Wi-Fi storage catalogues, playback of a fresh clip’s proxy, and JPEG and 4K original imports with matching checksums. A retained D-Log M original also passed crop, trim, and 10-bit Rec.709 export checks. [Hardware test details](docs/COMPATIBILITY.md#dji-osmo-action-6-hardware-test) · [Editor test details](docs/COMPATIBILITY.md#action-6-editor-verification)
 
 ## Get the app
 
