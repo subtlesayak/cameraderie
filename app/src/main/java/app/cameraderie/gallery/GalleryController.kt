@@ -309,7 +309,7 @@ class GalleryController(private val service: GalleryService) {
         private fun finishCapture() {
             val recorder=capture ?: return;capture=null
             val data=recorder.finish() ?: return
-            val pool=Executors.newSingleThreadExecutor { task -> Thread(task,"GripBridge-private-list-diagnostic").apply { isDaemon=true } }
+            val pool=Executors.newSingleThreadExecutor { task -> Thread(task,"Cameraderie-private-list-diagnostic").apply { isDaemon=true } }
             pool.execute {
                 var saved=false
                 try { synchronized(captureFileLock) {
@@ -510,7 +510,7 @@ class GalleryController(private val service: GalleryService) {
                 notice!=null -> notice
                 result==GalleryDownloadQueue.State.COMPLETE -> "Queued original imported and verified."
                 result==GalleryDownloadQueue.State.REFRESH -> "Queued file could not be found. Refresh the library or cancel that file in the download queue."
-                result==GalleryDownloadQueue.State.REVIEW -> "Check the last file in Imported Images before restarting the queue."
+                result==GalleryDownloadQueue.State.REVIEW -> "Check the last file in Library before restarting the queue."
                 result==GalleryDownloadQueue.State.RESTART -> "The camera could not confirm the saved download. Select Restart file to start it again."
                 else -> "Download queue paused. Resume checks any saved bytes before continuing."
             }
@@ -518,7 +518,7 @@ class GalleryController(private val service: GalleryService) {
                 if(advanceQueue())return
                 transfer=if(!catalogue.snapshot.complete && queue.snapshot(cameraKey).any { it.state.pending })
                     "Downloads from the scan finished. Refresh the library to find the remaining files."
-                else "Download queue finished. Verified files are in Imported Images."
+                else "Download queue finished. Verified files are in Library."
             }
             queueRunning=false
             explicitRestartId=null
@@ -844,7 +844,7 @@ class GalleryController(private val service: GalleryService) {
                 else -> "Importing original…"
             }
             percent=null
-            val pool=Executors.newSingleThreadExecutor { task -> Thread(task,"GripBridge-gallery-import").apply { isDaemon=true } }
+            val pool=Executors.newSingleThreadExecutor { task -> Thread(task,"Cameraderie-gallery-import").apply { isDaemon=true } }
             transferExecutor=pool
             val worker=session
             val claim=queueClaim
@@ -933,13 +933,13 @@ class GalleryController(private val service: GalleryService) {
                     } else if(live(this) && transferCancel===cancel) {
                         importing=false;transferHttp=null;transferExecutor=null;percent=if(result.completed.isNotEmpty())100 else null
                         transfer=when {
-                            result.completed.isNotEmpty() && edit is GalleryVideoEdit.Frame -> "Full-resolution JPEG saved in Imported Images."
+                            result.completed.isNotEmpty() && edit is GalleryVideoEdit.Frame -> "Full-resolution JPEG saved in Library."
                             edit!=null && result.failedAt==MediaImportTransaction.Phase.COPY && !result.cancelled ->
                                 "Couldn’t extract a full-resolution frame. Check the camera connection and try another position."
                             companionAbsent -> "The camera does not have a ${companion?.extension} companion for this file."
                             result.completed.isNotEmpty() && companion!=null -> "Verified ${companion.extension} companion saved to the selected folder."
-                            result.completed.isNotEmpty() -> (if(folder==null) "Original imported and verified in Gallery → GripBridge." else "Verified original is available in the selected folder and Imported Images.")+(if(result.followUpFailed) " Saved-file details need a refresh." else "")
-                            result.reconciliationRequired -> "Import outcome needs checking in Imported Images before retrying."
+                            result.completed.isNotEmpty() -> (if(folder==null) "Original imported and verified in Gallery → Cameraderie." else "Verified original is available in the selected folder and Library.")+(if(result.followUpFailed) " Saved-file details need a refresh." else "")
+                            result.reconciliationRequired -> "Import outcome needs checking in Library before retrying."
                             result.cleanupFailed -> "Import stopped. Pending-file cleanup could not be confirmed."
                             result.cancelled -> "Import canceled. Completed files remain on the phone."
                             result.filenameConflict -> "The destination cannot keep the original filename. Choose another folder."
@@ -1054,7 +1054,7 @@ class GalleryController(private val service: GalleryService) {
                     }
                 })
             session=worker
-            executor=Executors.newSingleThreadExecutor { task -> Thread(task,"GripBridge-gallery").apply { isDaemon=true } }
+            executor=Executors.newSingleThreadExecutor { task -> Thread(task,"Cameraderie-gallery").apply { isDaemon=true } }
             executor!!.execute { worker.run() }
         }
         override fun prepareExit() {

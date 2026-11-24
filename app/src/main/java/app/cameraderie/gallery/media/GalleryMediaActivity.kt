@@ -137,7 +137,7 @@ class GalleryMediaActivity:CameraderieActivity() {
             }
             menu.add("Storage").setOnMenuItemClickListener { storagePicker();true }
             menu.add("Download queue").setOnMenuItemClickListener { showQueue();true }
-            menu.add("Imported Images").setOnMenuItemClickListener { startActivity(Intent(this@GalleryMediaActivity,app.cameraderie.gallery.media.history.ImportedImagesActivity::class.java));true }
+            menu.add("Library").setOnMenuItemClickListener { startActivity(Intent(this@GalleryMediaActivity,app.cameraderie.gallery.media.history.ImportedImagesActivity::class.java));true }
             menu.add("Exit camera session").setOnMenuItemClickListener { service?.closeCameraGallery();render();true }
         }
         ui.add(root,toolbar)

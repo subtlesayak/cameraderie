@@ -201,7 +201,7 @@ internal class GalleryQueueDialog(private val activity: AppCompatActivity, priva
                 media?.transfer?.takeIf { it.startsWith("Free phone storage") } ?: "Saved bytes are checked before resuming."
             listed -> "Start downloads to ask the camera to confirm this file again."
             needsRefresh -> "Check the camera storage and refresh the library before retrying."
-            next?.state == GalleryDownloadQueue.State.REVIEW -> "Check Imported Images before retrying."
+            next?.state == GalleryDownloadQueue.State.REVIEW -> "Check Library before retrying."
             else -> ""
         }
         headline.update(title)
@@ -341,7 +341,7 @@ internal class GalleryQueueDialog(private val activity: AppCompatActivity, priva
                 GalleryDownloadQueue.State.RESUME -> "Interrupted"
                 GalleryDownloadQueue.State.RESTART -> "Restart required"
                 GalleryDownloadQueue.State.REFRESH -> "Refresh needed"
-                GalleryDownloadQueue.State.REVIEW -> "Check Imported Images"
+                GalleryDownloadQueue.State.REVIEW -> "Check Library"
                 GalleryDownloadQueue.State.COMPLETE -> "Completed"
                 GalleryDownloadQueue.State.CANCELED -> "Canceled"
             }
@@ -390,7 +390,7 @@ internal class GalleryQueueDialog(private val activity: AppCompatActivity, priva
             val ids = pending.indices.filter { checked[it] }.mapTo(linkedSetOf()) { pending[it].id }
             if (ids.isEmpty()) return@setOnClickListener
             chooser.dismiss()
-            confirmCancel(ids,"Cancel selected downloads?","This cancels ${ids.size} pending downloads. Completed files stay in Imported Images.")
+            confirmCancel(ids,"Cancel selected downloads?","This cancels ${ids.size} pending downloads. Completed files stay in Library.")
         }
     }
 

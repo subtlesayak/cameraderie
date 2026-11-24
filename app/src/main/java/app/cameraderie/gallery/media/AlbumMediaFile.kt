@@ -4,13 +4,20 @@ import java.util.Locale
 
 internal data class AlbumMediaFile(val name: String, val mime: String, val video: Boolean, val raw: Boolean) {
     companion object {
+        private val rawTypes = mapOf(
+            "dng" to "image/x-adobe-dng", "arw" to "image/x-sony-arw",
+            "cr2" to "image/x-canon-cr2", "cr3" to "image/x-canon-cr3",
+            "nef" to "image/x-nikon-nef", "nrw" to "image/x-nikon-nrw",
+            "raf" to "image/x-fuji-raf", "rw2" to "image/x-panasonic-rw2",
+            "orf" to "image/x-olympus-orf", "pef" to "image/x-pentax-pef",
+            "srw" to "image/x-samsung-srw",
+        )
         private val documentTypes = mapOf(
             "jpg" to "image/jpeg", "jpeg" to "image/jpeg", "png" to "image/png",
             "heic" to "image/heic", "heif" to "image/heif", "webp" to "image/webp",
-            "dng" to "image/x-adobe-dng", "arw" to "image/x-sony-arw", "cr3" to "image/x-canon-cr3",
-            "nef" to "image/x-nikon-nef", "raf" to "image/x-fuji-raf",
-            "mp4" to "video/mp4", "mov" to "video/quicktime", "mts" to "video/mp2ts", "m2ts" to "video/mp2ts"
-        )
+            "tif" to "image/tiff", "tiff" to "image/tiff", "avif" to "image/avif",
+            "mp4" to "video/mp4", "mov" to "video/quicktime", "mts" to "video/mp2ts", "m2ts" to "video/mp2ts",
+        ) + rawTypes
 
         fun document(displayName: String): AlbumMediaFile? {
             if (displayName.length > 180 || displayName.any { it == '/' || it == '\\' || it.isISOControl() }) return null
@@ -19,7 +26,7 @@ internal data class AlbumMediaFile(val name: String, val mime: String, val video
             val extension = displayName.substring(dot + 1).lowercase(Locale.ROOT)
             val mime = documentTypes[extension] ?: return null
             return AlbumMediaFile(displayName, mime, mime.startsWith("video/"),
-                extension in setOf("dng", "arw", "cr3", "nef", "raf"))
+                extension in rawTypes)
         }
     }
 }

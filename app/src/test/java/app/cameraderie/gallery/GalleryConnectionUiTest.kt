@@ -62,7 +62,7 @@ class GalleryConnectionUiTest {
     @Test fun wifiOffHasAnActionableRadioMessageWithoutInventingAConnectedCamera() {
         val model=GalleryConnectionUi.render(GalleryConnectFlow.State(GalleryConnectFlow.Stage.FAILED,
             failure=GalleryConnectFlow.Failure(GalleryConnectFlow.Stage.WIFI_JOINING,GalleryConnectFlow.Category.WIFI_DISABLED,0,0)),true)
-        assertTrue(model.detail.contains("Turn on Wi-Fi"));assertTrue(model.detail.contains("bridge can stay running"))
+        assertTrue(model.detail.contains("Turn on Wi-Fi, then retry."))
         assertTrue(model.retry);assertFalse(model.connect);assertFalse(model.busy)
     }
 }

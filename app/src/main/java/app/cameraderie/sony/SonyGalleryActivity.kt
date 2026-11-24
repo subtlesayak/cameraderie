@@ -662,7 +662,7 @@ class SonyGalleryActivity : CameraderieActivity() {
         if(busy) return
         val historySource=cameraScope;val historySourceKind=cameraScopeKind;val historyModel=current.model
         val token=generation;setBusy(true);shareReady.visibility=View.GONE;readyToShare=emptyList()
-        val destination=if(folder==null) "Gallery → GripBridge (DCIM/GripBridge)" else "the selected folder"
+        val destination=if(folder==null) "Gallery → Cameraderie (DCIM/Cameraderie)" else "the selected folder"
         sessionStatus="Importing ${items.size} files to $destination… You can switch apps; progress stays in the camera notification."
         worker.execute {
             val history=ImportHistoryRepository.get(this)
@@ -774,12 +774,12 @@ class SonyGalleryActivity : CameraderieActivity() {
             post(token) {
                 if(!current.usable) {
                     disconnect("Import stopped after $completed completed files. Saved files remain in $destination. The camera connection ended; reconnect the saved camera to retry remaining files."+
-                        if(reconciliationRequired) " Check Imported Images before trying the file again." else if(cleanupFailed) " An incomplete item could not be confirmed removed." else "")
+                        if(reconciliationRequired) " Check Library before trying the file again." else if(cleanupFailed) " An incomplete item could not be confirmed removed." else "")
                     return@post
                 }
                 setBusy(false)
                 sessionStatus=if(!failed && completed==items.size) "Verified $completed files in $destination."+(if(followUpFailed) " Some saved-file details could not be refreshed." else "")
-                    else "Import stopped after $completed completed files. ${if(reconciliationRequired) "Check Imported Images before trying the file again." else if(cleanupFailed) "An incomplete item could not be confirmed removed." else if(filenameConflict) "The destination cannot keep the original filename. Choose another folder." else "Unfinished pending files were removed."} Select remaining files to retry."
+                    else "Import stopped after $completed completed files. ${if(reconciliationRequired) "Check Library before trying the file again." else if(cleanupFailed) "An incomplete item could not be confirmed removed." else if(filenameConflict) "The destination cannot keep the original filename. Choose another folder." else "Unfinished pending files were removed."} Select remaining files to retry."
                 if(!failed && completed==items.size) {
                     importIndicator.visibility=View.VISIBLE;importIndicator.isIndeterminate=false;importIndicator.setProgressCompat(100,true)
                     importPercent.visibility=View.VISIBLE;importPercent.text="100% · $completed files imported"
@@ -787,7 +787,7 @@ class SonyGalleryActivity : CameraderieActivity() {
                 importedLocal.putAll(published)
                 if(shareAfter && !failed && completed==items.size) {
                     val uris=items.mapNotNull { published[it.id] }
-                    if(uris.size==items.size) showShare(uris) else sessionStatus="Files were imported. Open Imported Images to share the saved files."
+                    if(uris.size==items.size) showShare(uris) else sessionStatus="Files were imported. Open Library to share the saved files."
                 }
             }
         } }

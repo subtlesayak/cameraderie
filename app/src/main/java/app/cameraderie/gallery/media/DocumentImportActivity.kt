@@ -46,13 +46,13 @@ class DocumentImportActivity : CameraderieActivity() {
             title = "Import files"
             setTitleTextColor(ui.tone.text)
             setNavigationIcon(R.drawable.ic_arrow_back)
-            navigationContentDescription = "Back to Imported Images"
+            navigationContentDescription = "Back to Library"
             setNavigationOnClickListener { finish() }
         })
         val (page, body) = ui.page()
         root.addView(page)
         val card = ui.card(body, "Photos and videos")
-        ui.add(card, ui.text("Choose files from Android storage or an attached SD reader. Verified copies appear in Imported Images.", secondary = true))
+        ui.add(card, ui.text("Choose files from Android storage or an attached SD reader. Verified copies appear in Library.", secondary = true))
         val choose = ui.action("Choose files") {
             try {
                 // Some document providers report manufacturer RAW as application/octet-stream.
@@ -159,7 +159,7 @@ internal class DocumentImportModel(application: Application) : AndroidViewModel(
                 if (result.unsupported > 0) add("${result.unsupported} unsupported.")
                 if (result.filenameConflicts > 0) add("${result.filenameConflicts} could not keep the original filename. Choose another folder.")
                 if (result.failed > 0) add("${result.failed} failed.")
-                if (result.needsReview) add("Check Imported Images before trying again.")
+                if (result.needsReview) add("Check Library before trying again.")
             }.joinToString(" ")
             state.postValue(State(message = message))
         }

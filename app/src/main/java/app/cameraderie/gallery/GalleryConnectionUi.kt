@@ -58,7 +58,7 @@ object GalleryConnectionUi {
         GalleryConnectFlow.Category.CAMERA_ASLEEP -> "Power on the camera and retry gallery."
         GalleryConnectFlow.Category.IDENTITY -> "The saved gallery identity could not be loaded. Keep app data intact and export diagnostics."
         GalleryConnectFlow.Category.CREDENTIALS -> "The camera returned invalid Wi-Fi details. Keep it awake and reconnect from the beginning."
-        GalleryConnectFlow.Category.WIFI_DISABLED -> "Turn on Wi-Fi, then retry. The Bluetooth bridge can stay running."
+        GalleryConnectFlow.Category.WIFI_DISABLED -> "Turn on Wi-Fi, then retry."
         GalleryConnectFlow.Category.WIFI_UNAVAILABLE -> "The camera Wi-Fi request was not completed. Check the camera and approve Android’s request on retry."
         GalleryConnectFlow.Category.NETWORK_LOST,GalleryConnectFlow.Category.ROUTE -> "The selected camera network is unavailable. Keep the camera nearby and reconnect."
         GalleryConnectFlow.Category.REJECTED -> "The camera rejected this step. Check its approval screen, then retry."

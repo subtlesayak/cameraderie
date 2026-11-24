@@ -13,6 +13,10 @@ class AlbumMediaFileTest {
         assertEquals("image/x-fuji-raf", AlbumMediaFile.document("IMG.RAF")?.mime)
         assertEquals("image/x-sony-arw", AlbumMediaFile.document("IMG.ARW")?.mime)
         assertEquals("image/heic", AlbumMediaFile.document("IMG.HEIC")?.mime)
+        assertEquals("image/tiff", AlbumMediaFile.document("IMG.TIF")?.mime)
+        for (extension in listOf("CR2", "NRW", "RW2", "ORF", "PEF", "SRW")) {
+            assertTrue(AlbumMediaFile.document("IMG.$extension")!!.raw)
+        }
         assertTrue(AlbumMediaFile.document("Clip.MOV")!!.video)
     }
 

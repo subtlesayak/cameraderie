@@ -75,7 +75,7 @@ internal data class Media3VideoEdit(
         }, {})
         if (result.completed.isNotEmpty()) return name
         if (result.reconciliationRequired || result.cleanupFailed)
-            throw IOException("Check Imported Images to confirm whether the MP4 was saved.")
+            throw IOException("Check Library to confirm whether the MP4 was saved.")
         throw IOException("Couldn’t save the MP4. Check free space and try again.")
     }
 

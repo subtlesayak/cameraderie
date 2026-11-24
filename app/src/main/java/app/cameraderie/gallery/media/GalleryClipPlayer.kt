@@ -67,7 +67,7 @@ internal class GalleryClipPlayer(
         ui.add(this,time)
         ui.add(this,toggle,8)
         saveFrame?.let { ui.add(this,it,8) }
-        ui.add(this,ui.text("To edit and export an MP4, import the original and open it in Imported Images.",
+        ui.add(this,ui.text("To edit and export an MP4, import the original and open it in Library.",
             UiKit.Type.small,secondary=true),8)
     }
     private val dialog = MaterialAlertDialogBuilder(activity).setTitle(name)

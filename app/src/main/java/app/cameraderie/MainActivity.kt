@@ -93,7 +93,7 @@ class MainActivity : CameraderieActivity() {
         ui.add(body, ui.text("Cameraderie", UiKit.Type.display, bold = true).apply { isAccessibilityHeading = true }, 20)
         val library = ui.card(body, "Library", prominent = true)
         ui.add(library, ui.action("Open library", primary = true) { open(ImportedImagesActivity::class.java) })
-        ui.add(library, ui.action("Import files or folder") { open(DocumentImportActivity::class.java) }, 8)
+        ui.add(library, ui.action("Import from files or a memory card") { open(DocumentImportActivity::class.java) }, 8)
         ui.add(library, ui.action("Relink OpenGrip library") { open(LibraryTransferActivity::class.java) }, 8)
 
         val dji = ui.card(body, CameraAdapters.action6.name)
