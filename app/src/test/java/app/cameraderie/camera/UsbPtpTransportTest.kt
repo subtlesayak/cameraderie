@@ -51,6 +51,21 @@ class UsbPtpTransportTest {
         }
     }
 
+    @Test fun sendsControlDataWithTheMatchingTransaction() {
+        val replies = ArrayDeque(listOf(container(3, 0x2001, 0), container(3, 0x2001, 1)))
+        val requests = mutableListOf<ByteArray>()
+        val usb = UsbPtpTransport(
+            write = { requests.add(it); it.size },
+            read = { buffer, _ -> replies.removeFirst().also { it.copyInto(buffer) }.size },
+            packetSize = 64,
+        )
+        usb.open()
+        val response = usb.command(0x9207, 0xd21e, outgoing = byteArrayOf(-1))
+        assertEquals(0x2001, response.code)
+        assertArrayEquals(container(1, 0x9207, 1, byteArrayOf(0x1e, 0xd2.toByte(), 0, 0)), requests[1])
+        assertArrayEquals(container(2, 0x9207, 1, byteArrayOf(-1)), requests[2])
+    }
+
     private fun container(type: Int, code: Int, transaction: Int, payload: ByteArray = byteArrayOf()): ByteArray =
         ByteBuffer.allocate(12 + payload.size).order(ByteOrder.LITTLE_ENDIAN)
             .putInt(12 + payload.size).putShort(type.toShort()).putShort(code.toShort())

@@ -8,6 +8,8 @@ import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
+import android.os.SystemClock
+import app.gripbridge.core.Recording
 import app.cameraderie.camera.PtpDataset
 import app.cameraderie.camera.PtpDeviceInfo
 import app.cameraderie.camera.UsbPtpTransport
@@ -22,14 +24,76 @@ internal class SonyUsbViewfinder private constructor(
     private val link: Interface,
     private val ptp: UsbPtpTransport,
     private val readsStatus: Boolean,
+    private val sendsControls: Boolean,
     private var initialStatus: SonyUsbStatus?,
 ) : Closeable {
     fun status(fresh: Boolean = false): SonyUsbStatus {
         val initial = initialStatus
         initialStatus = null
-        if (!fresh && initial != null) return initial
         if (!readsStatus) return SonyUsbStatus.unknown
-        return parseStatus(ptp.command(GET_CAMERA_PROPERTIES, maxData = MAX_PROPERTIES))
+        val actual = if (!fresh && initial != null) initial
+            else parseStatus(ptp.command(GET_CAMERA_PROPERTIES, maxData = MAX_PROPERTIES))
+        return if (sendsControls) actual else actual.copy(availableActions = emptySet())
+    }
+
+    fun command(action: SonyUsbAction, active: () -> Boolean): Pair<SonyUsbStatus, String> {
+        val current = status(fresh = true)
+        if (!active() || action !in current.availableActions) {
+            return current to "The camera’s current mode does not allow this action."
+        }
+        val result = when (action) {
+            SonyUsbAction.FOCUS -> {
+                val focus = hold(SonyUsbStatus.FOCUS_BUTTON) {
+                    readUntil(active, 1200) { it.focus in setOf(2, 3, 6, 7) }
+                }
+                if (focus.focus in setOf(2, 6)) "Camera confirmed focus."
+                else "The camera did not confirm focus."
+            }
+            SonyUsbAction.PHOTO -> {
+                hold(SonyUsbStatus.FOCUS_BUTTON) {
+                    if (active()) hold(SonyUsbStatus.PHOTO_BUTTON) { SystemClock.sleep(300) }
+                }
+                val photo = readUntil(active, 2000) { (it.mediaInMemory ?: 0) > 0 }
+                if ((photo.mediaInMemory ?: 0) > 0) "Camera reported a new photo. Check it on the card."
+                else "Shutter accepted. Check the camera for the saved photo."
+            }
+            SonyUsbAction.START_RECORDING, SonyUsbAction.STOP_RECORDING -> {
+                val starts = action == SonyUsbAction.START_RECORDING
+                button(SonyUsbStatus.MOVIE_BUTTON, if (starts) 2 else 1)
+                val desired = if (starts) Recording.RECORDING else Recording.IDLE
+                val movie = readUntil(active, 2400) { it.recording == desired }
+                when {
+                    movie.recording != desired -> "Camera did not confirm the recording change."
+                    starts -> "Camera confirmed recording."
+                    else -> "Camera confirmed recording stopped."
+                }
+            }
+        }
+        return status(fresh = true) to result
+    }
+
+    private fun button(code: Int, value: Byte) {
+        ptp.command(SET_CONTROL, code, outgoing = byteArrayOf(value, 0)).requireOk(SET_CONTROL)
+    }
+
+    private fun <T> hold(code: Int, action: () -> T): T {
+        button(code, 2)
+        try {
+            return action()
+        } finally {
+            button(code, 1)
+        }
+    }
+
+    private fun readUntil(active: () -> Boolean, timeoutMs: Long, stop: (SonyUsbStatus) -> Boolean): SonyUsbStatus {
+        val deadline = SystemClock.elapsedRealtime() + timeoutMs
+        var observed = status(fresh = true)
+        while (active() && !stop(observed) && SystemClock.elapsedRealtime() < deadline) {
+            SystemClock.sleep(120)
+            if (!active()) break
+            observed = status(fresh = true)
+        }
+        return observed
     }
 
     fun frame(): Bitmap? {
@@ -65,6 +129,7 @@ internal class SonyUsbViewfinder private constructor(
         private const val SDIO_CONNECT = 0x9201
         private const val SDIO_DEVICE_INFO = 0x9202
         private const val GET_CAMERA_PROPERTIES = 0x9209
+        private const val SET_CONTROL = 0x9207
         private const val MAX_PROPERTIES = 64 * 1024
         private const val SONY_PROPERTY_FORMAT_2 = 200
         private const val GET_OBJECT = 0x1009
@@ -110,7 +175,8 @@ internal class SonyUsbViewfinder private constructor(
                 val properties = if (hasProperties) ptp.command(GET_CAMERA_PROPERTIES, maxData = MAX_PROPERTIES) else null
                 return SonyUsbViewfinder(
                     model, SonyCameraIdentity.label(identity.version), connection, link, ptp,
-                    readsStatus, if (readsStatus && properties != null) parseStatus(properties) else null,
+                    readsStatus, SET_CONTROL in identity.operations,
+                    if (readsStatus && properties != null) parseStatus(properties) else null,
                 )
             } catch (error: Exception) {
                 if (claimed) runCatching { ptp.close() }

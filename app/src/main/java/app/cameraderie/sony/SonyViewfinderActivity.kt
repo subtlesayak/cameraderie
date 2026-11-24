@@ -18,6 +18,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import app.cameraderie.ui.CameraderieActivity
 import app.cameraderie.ui.UiKit
 import app.gripbridge.core.Recording
@@ -33,6 +34,11 @@ class SonyViewfinderActivity : CameraderieActivity() {
     private val permissionAction get() = "$packageName.SONY_VIEWFINDER_USB_PERMISSION"
     @Volatile private var generation = 0
     @Volatile private var galleryRequest: Int? = null
+    @Volatile private var cameraCommand: SonyUsbAction? = null
+    private var commandRunning = false
+    private val controlButtons = mutableMapOf<SonyUsbAction, Button>()
+    private lateinit var controlFeedback: TextView
+    private var previewRecording = Recording.UNKNOWN
     private var pendingDevice: Int? = null
     private var activeDevice: Int? = null
     private lateinit var status: TextView
@@ -95,8 +101,27 @@ class SonyViewfinderActivity : CameraderieActivity() {
             visibility = View.GONE
         }
         ui.add(body, cameraState, 8)
+        SonyUsbAction.entries.forEach { action ->
+            controlButtons[action] = ui.action(action.label) {
+                commandRunning = true
+                disconnect.isEnabled = false
+                controlButtons.values.forEach { it.isEnabled = false }
+                gallery.isEnabled = false
+                controlFeedback.text = "Waiting for camera confirmation…"
+                controlFeedback.visibility = View.VISIBLE
+                cameraCommand = action
+            }.apply { visibility = View.GONE }
+        }
+        ui.row(body, controlButtons.getValue(SonyUsbAction.FOCUS), controlButtons.getValue(SonyUsbAction.PHOTO))
+        ui.row(body, controlButtons.getValue(SonyUsbAction.START_RECORDING), controlButtons.getValue(SonyUsbAction.STOP_RECORDING))
+        controlFeedback = ui.text("", UiKit.Type.small, secondary = true).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            visibility = View.GONE
+        }
+        ui.add(body, controlFeedback)
         gallery = ui.action("Open camera gallery") {
             gallery.isEnabled = false
+            controlButtons.values.forEach { it.isEnabled = false }
             cameraState.text = "Checking camera before opening the gallery…"
             galleryRequest = generation
         }.apply {
@@ -108,6 +133,20 @@ class SonyViewfinderActivity : CameraderieActivity() {
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(usbEvents, filter, Context.RECEIVER_NOT_EXPORTED)
         else @Suppress("DEPRECATION") registerReceiver(usbEvents, filter)
         setContentView(scroll)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val message = when {
+                    commandRunning -> "Wait for camera confirmation before leaving the viewfinder."
+                    previewRecording == Recording.RECORDING -> "Stop recording before leaving the viewfinder."
+                    else -> {
+                        finish()
+                        return
+                    }
+                }
+                controlFeedback.text = message
+                controlFeedback.visibility = View.VISIBLE
+            }
+        })
     }
 
     private fun chooseCamera() {
@@ -158,6 +197,19 @@ class SonyViewfinderActivity : CameraderieActivity() {
                     var nextStateAt = 0L
                     var displayed: SonyUsbStatus? = null
                     while (token == generation) {
+                        val action = cameraCommand
+                        if (action != null) {
+                            cameraCommand = null
+                            val (camera, feedback) = session.command(action) { token == generation }
+                            displayed = camera
+                            runOnUiThread {
+                                if (token == generation) {
+                                    commandRunning = false
+                                    controlFeedback.text = feedback
+                                    showCameraState(camera)
+                                }
+                            }
+                        }
                         val handoff = galleryRequest == token
                         if (handoff || SystemClock.elapsedRealtime() >= nextStateAt) {
                             val camera = session.status(fresh = handoff)
@@ -167,7 +219,7 @@ class SonyViewfinderActivity : CameraderieActivity() {
                                 break
                             }
                             if (handoff || displayed != camera) {
-                                if (displayed == null) android.util.Log.i(
+                                if (displayed?.recording != camera.recording) android.util.Log.i(
                                     "CameraderieViewfinder", "Sony USB connected, camera status ${camera.recording}",
                                 )
                                 displayed = camera
@@ -187,7 +239,9 @@ class SonyViewfinderActivity : CameraderieActivity() {
                         try {
                             val frame = session.frame()
                             if (frame == null) {
-                                if (SystemClock.elapsedRealtime() - lastFrame > 8000) throw IOException("The camera did not send live view. Check PC Remote and shooting mode.")
+                                if (SystemClock.elapsedRealtime() - lastFrame > 8000 && displayed?.recording != Recording.RECORDING) {
+                                    throw IOException("The camera did not send live view. Check PC Remote and shooting mode.")
+                                }
                                 SystemClock.sleep(80)
                                 continue
                             }
@@ -231,20 +285,33 @@ class SonyViewfinderActivity : CameraderieActivity() {
     }
 
     private fun showCameraState(camera: SonyUsbStatus) {
+        previewRecording = camera.recording
+        disconnect.isEnabled = !commandRunning && camera.recording != Recording.RECORDING
         val recording = when (camera.recording) {
             Recording.IDLE -> "Camera idle"
-            Recording.RECORDING -> "Finish recording on the camera before opening the gallery."
+            Recording.RECORDING -> "Recording · Stop recording before opening the gallery."
             Recording.UNKNOWN -> "Waiting for camera recording status."
         }
         cameraState.text = listOfNotNull(recording, camera.iso?.let { "ISO $it" }).joinToString(" · ")
         cameraState.visibility = View.VISIBLE
         gallery.visibility = View.VISIBLE
-        gallery.isEnabled = galleryRequest == null && camera.recording == Recording.IDLE
+        val canAct = !commandRunning && galleryRequest == null
+        gallery.isEnabled = canAct && camera.recording == Recording.IDLE
+        controlButtons.forEach { (action, button) ->
+            val permitted = action in camera.availableActions
+            button.visibility = if (permitted) View.VISIBLE else View.GONE
+            button.isEnabled = canAct && permitted
+        }
     }
 
     private fun reset(message: String) {
         generation++
         galleryRequest = null
+        cameraCommand = null
+        commandRunning = false
+        previewRecording = Recording.UNKNOWN
+        controlButtons.values.forEach { it.visibility = View.GONE }
+        controlFeedback.visibility = View.GONE
         cameraState.visibility = View.GONE
         gallery.visibility = View.GONE
         gallery.isEnabled = false
@@ -253,6 +320,7 @@ class SonyViewfinderActivity : CameraderieActivity() {
         preview.setImageDrawable(null)
         preview.visibility = View.GONE
         connect.isEnabled = true
+        disconnect.isEnabled = true
         disconnect.visibility = View.GONE
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         status.text = message
@@ -260,7 +328,9 @@ class SonyViewfinderActivity : CameraderieActivity() {
 
     override fun onStop() {
         super.onStop()
-        if (activeDevice != null) reset("USB session closed. Tap Connect over USB to return to live view.")
+        if (activeDevice != null && previewRecording != Recording.RECORDING && !commandRunning) {
+            reset("USB session closed. Tap Connect over USB to return to live view.")
+        }
     }
 
     override fun onDestroy() {

@@ -51,15 +51,19 @@ Wi-Fi video and RAW transfers remain to be verified. Sony documents the α7 III�
 
 The α7 III reported firmware 4.0 in PC Remote mode. On Galaxy S24 FE running Android 17, Cameraderie received and displayed 1024 × 680 live-view frames over a direct USB data cable. It read the camera’s idle state and the ISO 640 value set on the camera. **Open camera gallery** took the idle session to gallery setup. Returning to the viewfinder and reconnecting on the same cable restored live view.
 
-An independent macOS Image Capture PTP probe also decoded four 1024 × 576 preview frames. A trial ISO increase changed the camera from 640 to 800. The decrease did not produce the requested value, so the public build retains ISO readout. Shutter, autofocus, recording commands, and the gallery lock during an active recording still need hardware verification.
+The camera confirmed autofocus in AF-S. It accepted the shutter command in M with single-shot drive and **PC+Camera** as the still-image destination. The shutter command returned successfully without a new-photo indication in the USB status.
 
-To try the Android viewfinder, set **Ctrl w/ Smartphone** to **Off** and **USB Connection** to **PC Remote**, then attach the camera to the phone with a data cable. In Cameraderie, open **Sony USB viewfinder** and tap **Connect over USB**. [Sony USB setup](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
+After switching the mode dial to Movie and reconnecting USB, Cameraderie received 1024 × 576 live view and confirmed recording start and stop from the camera’s USB status. The gallery and Disconnect buttons were disabled during recording. Android Back kept the viewfinder open, and the gallery button was available again after the camera returned to idle. The camera stayed idle during a recording attempt in still-photo mode and during an attempt after changing the dial without reconnecting.
+
+An independent macOS Image Capture PTP probe also decoded four 1024 × 576 preview frames. An ISO increase trial changed the camera from 640 to 800. The decrease did not produce the requested value, so Cameraderie exposes ISO readout.
+
+To try the Android viewfinder, set **Ctrl w/ Smartphone** to **Off** and **USB Connection** to **PC Remote**, then attach the camera to the phone with a data cable. In Cameraderie, open **Sony USB viewfinder** and tap **Connect over USB**. Set the mode dial to Movie before connecting for video recording. [Sony USB setup](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html) · [Sony remote shooting guide](https://support.d-imaging.sony.co.jp/app/imagingedge/en/instruction/4_5_remote.php)
 
 ### USB MTP video
 
 With **USB Connection** set to **MTP**, the α7 III exposed two MP4s on the Galaxy S24 FE. Cameraderie imported the newest clip through **Connect a USB camera** and recorded the original filename, capture date, and SHA-256. The 71,308,267-byte file appeared in the offline Library and matched the completed receipt when hashed separately.
 
-FFmpeg decoded all 144 video frames and the PCM audio track without errors. The clip is 5.76 seconds of H.264 video at 3840 × 2160 and 25 fps. The card’s copy was hashed independently after mounting the camera as USB Mass Storage on the Mac. Its SHA-256 matched the Cameraderie import. Direct USB MTP RAW transfer remains pending.
+FFmpeg decoded all 144 video frames and the PCM audio track without errors. The clip is 5.76 seconds of H.264 video at 3840 × 2160 and 25 fps. The card’s copy was hashed independently after mounting the camera as USB Mass Storage on the Mac. Its SHA-256 matched the Cameraderie import. A genuine 68,730,880-byte ARW from the other card imported through Android’s file picker. Its saved SHA-256 and receipt matched a separate read of the camera card. Direct USB MTP RAW transfer remains pending. After the PC Remote recording test, a separate MTP connection opened with an empty catalogue, which persisted after refresh and an app reconnect.
 
 ## Camera acceptance checklist
 

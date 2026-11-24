@@ -4,7 +4,7 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-/** One command, optional inbound data, and a response on a claimed USB still-image interface. */
+/** One command, optional data phase, and a response on a claimed USB still-image interface. */
 internal class UsbPtpTransport(
     private val write: (ByteArray) -> Int,
     private val read: (ByteArray, Int) -> Int,
@@ -37,16 +37,22 @@ internal class UsbPtpTransport(
         }
     }
 
-    fun command(operation: Int, vararg params: Int, maxData: Int = 0): Response {
+    fun command(operation: Int, vararg params: Int, maxData: Int = 0, outgoing: ByteArray? = null): Response {
         require(params.size <= 5 && maxData >= 0)
+        require(outgoing == null || (maxData == 0 && outgoing.size in 1..MAX_OUTBOUND_DATA))
         check(sessionOpen || operation == GET_DEVICE_INFO || operation == OPEN_SESSION)
         val transaction = if (sessionOpen) nextTransaction++ else 0
         val length = HEADER_SIZE + params.size * 4
         val request = ByteBuffer.allocate(length).order(ByteOrder.LITTLE_ENDIAN)
             .putInt(length).putShort(1).putShort(operation.toShort()).putInt(transaction)
         for (param in params) request.putInt(param)
-        val written = write(request.array())
-        if (written != length) throw IOException("Incomplete USB request for 0x${operation.toString(16)} ($written of $length bytes).")
+        writePacket(operation, request.array())
+        if (outgoing != null) {
+            val data = ByteBuffer.allocate(HEADER_SIZE + outgoing.size).order(ByteOrder.LITTLE_ENDIAN)
+                .putInt(HEADER_SIZE + outgoing.size).putShort(DATA.toShort()).putShort(operation.toShort())
+                .putInt(transaction).put(outgoing)
+            writePacket(operation, data.array())
+        }
 
         val first = readContainer(operation, transaction, maxData)
         if (first.type == RESPONSE) return Response(first.code, null)
@@ -54,6 +60,13 @@ internal class UsbPtpTransport(
         val response = readContainer(operation, transaction, 0, afterData = true)
         if (response.type != RESPONSE) throw IOException("USB camera omitted the operation response.")
         return Response(response.code, first.payload)
+    }
+
+    private fun writePacket(operation: Int, packet: ByteArray) {
+        val written = write(packet)
+        if (written != packet.size) {
+            throw IOException("Incomplete USB request for 0x${operation.toString(16)} ($written of ${packet.size} bytes).")
+        }
     }
 
     private data class Container(val type: Int, val code: Int, val payload: ByteArray?)
@@ -97,6 +110,7 @@ internal class UsbPtpTransport(
         private const val OPEN_SESSION = 0x1002
         private const val CLOSE_SESSION = 0x1003
         private const val HEADER_SIZE = 12
+        private const val MAX_OUTBOUND_DATA = 64
         private const val DATA = 2
         private const val RESPONSE = 3
     }
