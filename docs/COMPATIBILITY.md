@@ -45,7 +45,7 @@ On 24 November 2026, Cameraderie connected a physical Sony α7 III to a Galaxy S
 
 All three copies retained the capture date. Separate SHA-256 checks of the files in the Cameraderie album matched the completed import receipts. The original JPEG's saved bytes matched the file streamed from the camera. All three copies appeared in the offline Library after disconnecting.
 
-Wi-Fi video and RAW transfers remain to be verified. Sony documents the α7 III’s transfer mode and USB MTP access to the card in slot 1. [Sony Wi-Fi guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001653186.html) · [Sony USB guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
+With proxy recording enabled, the saved Wi-Fi connection exposed a newly recorded 720p proxy. Cameraderie imported the 4,198,781-byte MP4 and retained the camera filename and capture date. An independent hash of the saved file matched the completed receipt. FFmpeg decoded all 72 H.264 frames at 25 fps and the AAC audio in the 2.88-second clip. Wi-Fi RAW transfer remains to be verified. The α7 III can offer a proxy over Wi-Fi for XAVC S 4K clips when proxy recording was enabled at capture. Use USB MTP or a card reader for the 4K original. Sony limits MTP access to the card in slot 1. [Sony Wi-Fi guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001653186.html) · [Sony proxy transfer guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001667431.html) · [Sony USB guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
 
 ### USB PC Remote
 
