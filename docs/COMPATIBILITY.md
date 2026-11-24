@@ -5,7 +5,7 @@ Cameraderie imports files independently of camera brand through Android’s file
 | Camera | Transport | Implemented in Cameraderie | Standalone physical acceptance |
 | --- | --- | --- | --- |
 | DJI Osmo Action 6 | Bluetooth | Discovery, authorization, reconnect, firmware readout, photo shutter, normal-video record start and stop, Photo/Video mode selection. Camera status gates commands and gallery entry. | Verified on Galaxy S24 FE. Saved Bluetooth reconnect, Photo/Video modes, shutter, recording start and stop, and the gallery lock during recording passed. The camera answered a firmware query. [Hardware test details](#dji-osmo-action-6-hardware-test) |
-| DJI Osmo Action 6 | Bluetooth → local Wi-Fi | Idle preflight, playback handoff, SD and internal catalogues, Media3 playback of supported proxies, verified original downloads, durable queue, validated range resume and explicit restart. | Both storage catalogues, on-camera approval, fresh proxy playback, verified JPEG and 4K MP4 originals, and return to shooting passed. [Hardware test details](#dji-osmo-action-6-hardware-test) |
+| DJI Osmo Action 6 | Bluetooth → local Wi-Fi | Idle preflight, playback handoff, SD and internal catalogues, Media3 playback of supported proxies, verified original downloads, durable queue, validated range resume and explicit restart. | Both storage catalogues, on-camera approval, fresh proxy playback, verified JPEG and 4K MP4 originals, range resume, and return to shooting passed. [Hardware test details](#dji-osmo-action-6-hardware-test) |
 | Sony α7 III (ILCE-7M3) | Local Wi-Fi | Sony media discovery, gallery browsing, and JPEG import. | QR, model discovery, catalogue, saved reconnect, and Original/2M/VGA JPEG passed on Galaxy S24 FE. [Hardware test details](#sony-α7-iii-hardware-test) |
 | Sony α7 III (ILCE-7M3) | USB PC Remote | USB viewfinder, camera identity, firmware, ISO and recording-state readout, and an idle check before closing the viewfinder for gallery setup. | Live view and idle handoff passed on Galaxy S24 FE with camera firmware 4.0. [Hardware test details](#usb-pc-remote) |
 | Sony α7 III (ILCE-7M3) | USB MTP | Browse and import camera files from the card in slot 1. | Listed two videos and imported one verified 4K MP4 on Galaxy S24 FE. [Hardware test details](#usb-mtp-video) |
@@ -85,9 +85,10 @@ On 24 November 2026, a Galaxy S24 FE running Android 17 discovered and authorize
 | Proxy playback | A newly recorded SD clip loaded over the camera’s Wi-Fi and advanced through playback in Media3. |
 | Original imports | Cameraderie saved a 233,472-byte JPEG and the 2,379,426-byte original for the previewed clip. Independent readback from the phone matched both import receipt SHA-256 values. The receipts also verified the source stream. |
 | Video format | FFprobe read 3840 × 2160, 10-bit HEVC at 24000/1001 fps and AAC audio. |
+| Queued download | A longer test clip saved normally from the queue. A repeat download was paused and resumed from byte 8,919,441. The assembled 12,264,992-byte file matched the first import by SHA-256. The second save encountered the existing original filename, and the test queue entry was canceled. |
 | Return to shooting | After closing the gallery, the saved Bluetooth entry reconnected and showed fresh video status with recording controls available. |
 
-A physical test of interrupted transfer recovery and the DNG and WAV companions remains pending.
+The DNG and WAV lookups returned the missing-companion message for the test photo and video. Importing companion files still needs captures that include them.
 
 ## Action 6 editor verification
 
@@ -97,7 +98,7 @@ Dragging the crop and trim handles produced a 1084 × 1920 display crop and a 0.
 
 A separate Mac reference export used FFmpeg and VideoToolbox with the same original and LUT, a central 1080 × 1920 portrait crop, and a 0.500–2.500 s trim. It verified as Main 10 with BT.709 tags, AAC audio, and 240 decodable video frames. The source SHA-256 remained unchanged. [DJI Action 6 LUT downloads](https://www.dji.com/downloads/products/osmo-action-6)
 
-The direct camera proxy and original import were verified separately in the [Action 6 hardware test](#dji-osmo-action-6-hardware-test).
+The clip used for the wireless proxy test was also imported directly from the Action 6 and edited on the same Galaxy. Its camera metadata identified D-Log M. A 3802 × 2138 crop and a 0.591–3.365 s trim exported as a separate Main 10 HEVC file with BT.709 primaries, transfer and matrix, plus AAC audio. FFmpeg decoded both tracks and the original SHA-256 remained unchanged. [Direct camera test](#dji-osmo-action-6-hardware-test) · [DJI LUT download](https://www.dji.com/osmo-action-6/downloads)
 
 ## Full media acceptance
 
