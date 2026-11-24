@@ -19,6 +19,10 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -r app.cameraderie.test/app.cameraderie.NativeChecks
 ```
 
+## Continuous integration
+
+The [Android verification workflow](https://github.com/subtlesayak/cameraderie/actions/workflows/android.yml) runs on pushes to `main`, pull requests, and manual dispatch. It runs the JVM suite and lint, assembles debug and unsigned release APKs, and runs the native checks on an Android 12 emulator. It then runs the JVM suite and debug build against the shared modules exported from revision `8b893f7` through `-PcameraModulesDir`. The workflow verifies Cameraderie's external-module build. The other app and physical cameras are verified separately.
+
 ## Release signing
 
 ```sh
