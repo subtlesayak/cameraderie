@@ -2,11 +2,17 @@
 
 **See. Shoot. Save.**
 
-Cameraderie is a brand-agnostic Android app for browsing camera media, importing originals, and editing video. It was separated from **OpenGrip** as a standalone app.
+Cameraderie is a brand-agnostic Android media workspace for organizing footage from different cameras around one project. It was separated from **OpenGrip** as a standalone app.
 
 - Work with media from cameras, memory cards, and phone storage through Android’s file picker.
 - Keep filenames, capture information, and checksums in an offline library.
 - Edit and export separate files on your phone. Share them through Android when you choose.
+
+## Project and shoot workflow
+
+A project brings together the material for one production. Shoots group that material by day, location, or sequence. In **Himalayan Diaries**, **Day 1 · Departure** and **Day 2 · Mountain pass** can each contain Sony photos, DJI footage, Insta360 clips, audio, ride tracks, and notes.
+
+The project workspace is the product goal. It builds on verified imports and the offline library so the same originals can be reviewed, organized, edited, and exported by shoot. [Target workflow and acceptance checks](docs/WORKFLOW.md)
 
 ## Features
 
@@ -26,7 +32,7 @@ Any camera that implements a protocol supported by Cameraderie should work with 
 
 | Camera models | Connection to try | Cameraderie status |
 | --- | --- | --- |
-| DJI Osmo Action 6 | Bluetooth and local Wi-Fi | Shooting and gallery adapter implemented. Physical verification pending. |
+| DJI Osmo Action 6 | Bluetooth and local Wi-Fi | Shooting controls, gallery browsing, proxy playback, verified imports, and download resume tested on Galaxy S24 FE. |
 | DJI Osmo Action 5 Pro, Action 4, Osmo 360 | DJI R SDK over Bluetooth and USB file transfer where offered | Candidates for model-by-model testing. |
 | DJI Osmo Action 3, Osmo Nano | USB file transfer | Candidates for wired transfer testing. |
 | Sony α7 III (ILCE-7M3) | USB PC Remote, Sony Wi-Fi media transfer, and USB MTP | USB live view, autofocus, recording start and stop, Wi-Fi JPEG and video proxy imports, and USB MTP 4K video import tested on Galaxy S24 FE. |
@@ -62,6 +68,7 @@ The USB adapter discovers standard PTP/MTP interfaces across camera brands. Wire
 ## Documentation
 
 - [User guide](docs/USAGE.md)
+- [Project and shoot workflow](docs/WORKFLOW.md)
 - [Camera compatibility](docs/COMPATIBILITY.md)
 - [Building, testing, and signing](docs/BUILD.md)
 - [Contributing camera adapters](docs/CONTRIBUTING.md)
