@@ -32,4 +32,4 @@ Keep the release key outside the repository and use the same identity for update
 
 ## Verification
 
-The Android build passed 591 JVM tests, 39 native checks on the Galaxy S24 FE, debug and release assembly, and lint with zero errors. The release APK’s signature was checked using a dedicated verification key. Live-camera checks are tracked in the [compatibility matrix](COMPATIBILITY.md).
+The USB adapter build passed 594 JVM tests, 39 native checks on an Android 12 emulator, debug and release assembly, and lint with zero errors. The preceding Galaxy S24 FE build passed 39 native checks. Cameraderie also passed the JVM suite and debug assembly with `-PcameraModulesDir=../OpenGrip`. The release APK’s signature was checked using a dedicated verification key. Live-camera checks are tracked in the [compatibility matrix](COMPATIBILITY.md).

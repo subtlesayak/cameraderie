@@ -3,6 +3,7 @@ package app.cameraderie.sony
 import android.app.PendingIntent
 import android.content.*
 import android.hardware.usb.*
+import android.mtp.MtpConstants
 import android.mtp.MtpDevice
 import android.net.*
 import android.net.wifi.WifiNetworkSpecifier
@@ -15,6 +16,8 @@ import android.widget.*
 import app.cameraderie.ui.CameraderieActivity
 import app.cameraderie.ui.UiKit
 import app.cameraderie.R
+import app.cameraderie.camera.UsbCameraTransfer
+import app.cameraderie.gallery.media.AlbumMediaFile
 import app.cameraderie.gallery.net.CameraWifiAccess
 import app.cameraderie.gallery.media.FolderImportOutput
 import app.cameraderie.gallery.media.LocalFolderPicker
@@ -34,13 +37,19 @@ import java.util.concurrent.Executors
 class SonyGalleryActivity : CameraderieActivity() {
     companion object {
         private const val CONNECT_ATTACHED_USB = "connect-attached-usb"
+        private const val USB_ONLY = "usb-only"
 
         internal fun attachedUsbCamera(context: Context): UsbDevice? =
             context.getSystemService(UsbManager::class.java)?.deviceList?.values?.firstOrNull { it.vendorId == 0x054c }
 
         internal fun connectionIntent(context: Context, useUsb: Boolean): Intent =
             Intent(context, SonyGalleryActivity::class.java).putExtra(CONNECT_ATTACHED_USB, useUsb)
+
+        internal fun usbConnectionIntent(context: Context): Intent =
+            connectionIntent(context, useUsb = true).putExtra(USB_ONLY, true)
     }
+
+    private val usbOnly get() = intent.getBooleanExtra(USB_ONLY, false)
 
     private lateinit var ui: UiKit
     private lateinit var status: TextView
@@ -221,6 +230,7 @@ class SonyGalleryActivity : CameraderieActivity() {
         val model:String
         val usable:Boolean get()=true
         val needsFolderStaging:Boolean get()=false
+        val originalsOnly:Boolean get()=false
         val hierarchical:Boolean get()=false
         fun page(container:String,start:Int,count:Int):List<Item> = error("Flat gallery")
         fun totalListed():Int?=null
@@ -256,7 +266,7 @@ class SonyGalleryActivity : CameraderieActivity() {
             view.setPadding(bars.left+ui.dp(16),bars.top,bars.right+ui.dp(16),bars.bottom); WindowInsets.CONSUMED
         }
         val toolbar=com.google.android.material.appbar.MaterialToolbar(this).apply {
-            title="Camera gallery";setTitleTextColor(ui.tone.text)
+            title=if(usbOnly) "USB camera" else "Camera gallery";setTitleTextColor(ui.tone.text)
             setNavigationIcon(R.drawable.ic_arrow_back);navigationContentDescription="Back to Cameraderie"
             setNavigationOnClickListener { finish() }
         }
@@ -276,7 +286,7 @@ class SonyGalleryActivity : CameraderieActivity() {
         connectionOptions=toolbar.menu.add("Connection options").apply {
             setOnMenuItemClickListener { if(session!=null) { showingSetup=!showingSetup;updatePresentation() };true }
         }
-        toolbar.menu.add("Import settings").setOnMenuItemClickListener { SonyImportPreferences(this).show(this);true }
+        if(!usbOnly) toolbar.menu.add("Import settings").setOnMenuItemClickListener { SonyImportPreferences(this).show(this);true }
         toolbar.menu.add("Disconnect").setOnMenuItemClickListener { disconnect("Disconnected. Camera files are unchanged.");true }
         cameraContext=ui.text("Camera · Not connected",UiKit.Type.small,secondary=true);ui.add(root,cameraContext,4)
         status=ui.text("Connect to browse camera media",UiKit.Type.small,secondary=true).apply { accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE }
@@ -296,7 +306,7 @@ class SonyGalleryActivity : CameraderieActivity() {
         val setup=ui.card(body,"Connect camera")
         qr=ui.action(getString(R.string.qr_scan_button), primary = true) { scanCameraQr() }
         usb=ui.action("Connect over USB") { connectUsb() }
-        ui.row(setup,qr,usb)
+        if(usbOnly) ui.add(setup,usb) else ui.row(setup,qr,usb)
         val manual = ui.column()
         manualWifiExpanded = state?.getBoolean("manualWifiExpanded") == true
         fun Button.updateDisclosure() {
@@ -308,21 +318,25 @@ class SonyGalleryActivity : CameraderieActivity() {
             updateDisclosure()
             setOnClickListener { manualWifiExpanded = !manualWifiExpanded; updateDisclosure() }
         }
-        ui.add(setup,showManual,8)
-        ui.add(setup,manual,8)
+        if(!usbOnly) {
+            ui.add(setup,showManual,8)
+            ui.add(setup,manual,8)
+        }
         ui.add(manual,ui.text("On the camera, open Network → Send to Smartphone → Select on Smartphone. Keep that screen open and close Imaging Edge.",secondary=true))
         ssid=field(manual,"Camera Wi-Fi name",false)
         password=field(manual,"Camera Wi-Fi password",true)
         connect=ui.action("Connect over Wi-Fi",true) { join() }; ui.add(manual,connect,16)
-        ui.add(setup,ui.text("Available file formats depend on the camera and connection. Wi-Fi transfer may offer JPEG copies of RAW photos.",UiKit.Type.small,secondary=true),8)
+        val help = if(usbOnly) "Use a USB data cable and choose PTP, MTP, or file transfer on your camera. For USB storage, use Import from files or a memory card."
+            else "Available file formats depend on the camera and connection. Wi-Fi transfer may offer JPEG copies of RAW photos."
+        ui.add(setup,ui.text(help,UiKit.Type.small,secondary=true),8)
         ui.add(body,ui.text("Choose the phone album or a folder when importing. Home or switching apps keeps this session and imports active. Use the notification to return or disconnect. Back to Cameraderie closes the connection and removes the current incomplete import.",UiKit.Type.small,secondary=true),16)
         browser=SonyMediaBrowser(this,ui,{ key -> visibleItems[key]?.let { inspect(it) } },
             { keys -> saveBatch(keys) },{ keys -> shareItems(keys.mapNotNull { visibleItems[it] }) },
             { keys -> importItems(keys.mapNotNull { visibleItems[it] },chooseQuality=true) },onFilterChanged={ updateGalleryMenu() },
-            folderSelected={ keys -> chooseImportFolder(keys.mapNotNull { visibleItems[it] }) })
+            folderSelected={ keys -> chooseImportFolder(keys.mapNotNull { visibleItems[it] }) },showQualityOptions=!usbOnly)
         root.addView(browser,LinearLayout.LayoutParams(-1,0,1f))
         if(state?.getBoolean("hadCameraSession")==true) {
-            sessionStatus="The Sony camera session ended. Reconnect to continue browsing or importing."
+            sessionStatus="The camera session ended. Reconnect to continue browsing or importing."
         }
         updatePresentation()
         setContentView(root)
@@ -334,6 +348,7 @@ class SonyGalleryActivity : CameraderieActivity() {
         receiverRegistered=true
     }
     private fun refreshSavedCameras() {
+        if(usbOnly) return
         val token=generation
         worker.execute {
             val saved=runCatching { bookmarks.list() }
@@ -610,7 +625,7 @@ class SonyGalleryActivity : CameraderieActivity() {
                     browser.setSourceScope(cameraScope);browser.submit(indexed.values.map { entry(it) },"Photos",false,false)
                     setBusy(false)
                     val videos=indexed.values.count { it.video }
-                    sessionStatus="Gallery loaded: ${indexed.size-videos} photos/other files · $videos videos in VideoRoot."
+                    sessionStatus="Gallery loaded: ${indexed.size-videos} photos/other files · $videos videos."
                 }
             } catch(_:Exception) { post(token) { disconnect("The complete camera file list could not be read or changed during loading. Keep transfer mode open and reconnect the saved camera to retry.") } }
         }
@@ -631,7 +646,7 @@ class SonyGalleryActivity : CameraderieActivity() {
         val current=session ?: return
         if(!current.usable) { disconnect("The camera connection ended. Reconnect the saved camera before importing again.");return }
         if(busy || items.isEmpty() || items.size>500 || items.any { it.folder || !it.downloadable || it.size<=0 }) return
-        if(items.all { it.video }) { importSized(items,SonyImportSize.ORIGINAL_JPEG,shareAfter,folder);return }
+        if(current.originalsOnly || items.all { it.video }) { importSized(items,SonyImportSize.ORIGINAL_JPEG,shareAfter,folder);return }
         val modes=SonyImportSize.entries
         fun unchanged(item:Item)=SonyImportPlan.unchanged(item.name)
         val available=modes.map { size -> items.all { item ->
@@ -677,7 +692,7 @@ class SonyGalleryActivity : CameraderieActivity() {
                 val temporary=mutableListOf<java.io.File>()
                 try {
                     importPrefix="Importing ${index+1} of ${items.size}"
-                    val unchanged=SonyImportPlan.unchanged(item.name) && size!=SonyImportSize.ORIGINAL_RAW
+                    val unchanged=current.originalsOnly || (SonyImportPlan.unchanged(item.name) && size!=SonyImportSize.ORIGINAL_RAW)
                     val plan=if(unchanged) null else SonyImportSizePolicy.choose(size,current.resources(item))
                     var local:java.io.File?=null
                     val resource=when(plan) {
@@ -701,14 +716,16 @@ class SonyGalleryActivity : CameraderieActivity() {
                     val suffix=if(size==SonyImportSize.TWO_MEGAPIXEL_JPEG) "_2M.JPG" else "_VGA.JPG"
                     val name=if(file!=null) item.name.substringBeforeLast('.',item.name)+suffix else resource?.name ?: item.name
                     val expected=file?.length() ?: resource?.bytes ?: item.size
+                    val documentFile = if(current.originalsOnly) checkNotNull(AlbumMediaFile.document(name)) else null
                     val importItem=MediaImportTransaction.Item(item.id,name,expected)
                     fun copy(uri:Uri):MediaImportTransaction.Copied {
                         check(live(token))
                         post(token) { sessionStatus="$importPrefix · Copying";importIndicator.isIndeterminate=false;importIndicator.setProgressCompat(0,false);importPercent.text="$importPrefix · 0% copied" }
                         fun copyCamera(destination:Uri) = if(resource!=null) current.copyResource(item,resource,destination,token)
                             else current.copy(item,destination,token)
-                        val staged = file ?: if(folder!=null && current.needsFolderStaging) {
-                            val scratch = java.io.File.createTempFile("sony-usb-", ".part", cacheDir).also { temporary.add(it) }
+                        val staged = file ?: if(current.originalsOnly || (folder!=null && current.needsFolderStaging)) {
+                            check(cacheDir.usableSpace>=expected) { "Insufficient space to verify the camera file" }
+                            val scratch = java.io.File.createTempFile("usb-camera-", ".part", cacheDir).also { temporary.add(it) }
                             check(copyCamera(Uri.fromFile(scratch)).bytes==expected)
                             scratch
                         } else null
@@ -745,12 +762,13 @@ class SonyGalleryActivity : CameraderieActivity() {
                         }
                     }
                     val result=if(folder!=null) {
-                        FolderImportOutput(this,folder).publish(SonyImportPlan.file(name),
+                        FolderImportOutput(this,folder).publish(documentFile ?: SonyImportPlan.file(name),
                             importItem,history,{!live(token)},::copy,::draft,::validate,cameraTime=item.capture)
                     } else {
                         val basePort=store.port({ _,uri -> copy(uri) },{!live(token)},
                             { imported,uri -> published[imported.id]=uri },{ _ -> item.capture },
-                            historyDraft={ imported,uri -> draft(java.util.UUID.randomUUID().toString(),uri.toString(),imported.name,null) })
+                            historyDraft={ imported,uri -> draft(java.util.UUID.randomUUID().toString(),uri.toString(),imported.name,null) },
+                            documentFile=documentFile)
                         val port=object:MediaImportTransaction.Port by basePort {
                             override fun verify(item:MediaImportTransaction.Item,destination:String,copied:MediaImportTransaction.Copied) {
                                 post(token) { sessionStatus="$importPrefix · Verifying…";importIndicator.isIndeterminate=true;importPercent.text="Verifying file" }
@@ -838,8 +856,21 @@ class SonyGalleryActivity : CameraderieActivity() {
     }
     private fun deleteOutput(uri:Uri) { try { DocumentsContract.deleteDocument(contentResolver,uri) } catch(_:Exception) { try { contentResolver.delete(uri,null,null) } catch(_:Exception) {} } }
     private fun connectUsb() {
-        val device=attachedUsbCamera(this)
-        if(device==null) { sessionStatus="Connect the Sony camera with a USB data cable and set USB Connection to MTP.";return }
+        if(busy) return
+        val devices=if(usbOnly) usbManager?.deviceList?.values.orEmpty().filter(UsbCameraTransfer::supports).sortedBy { it.deviceId }
+            else listOfNotNull(attachedUsbCamera(this))
+        when(devices.size) {
+            0 -> sessionStatus="Connect a camera with a USB data cable and select PTP or MTP on the camera."
+            1 -> requestUsbAccess(devices.single())
+            else -> com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("Choose a USB camera")
+                .setItems(devices.mapIndexed { index, device -> SonyCameraIdentity.label(device.productName) ?: "USB camera ${index+1}" }.toTypedArray()) { _, index ->
+                    requestUsbAccess(devices[index])
+                }.setNegativeButton("Cancel",null).show()
+        }
+    }
+
+    private fun requestUsbAccess(device:UsbDevice) {
+        if(busy || usbManager?.deviceList?.get(device.deviceName)?.deviceId!=device.deviceId) return
         if(!usbManager.hasPermission(device)) {
             disconnect("Waiting for USB access…");setBusy(true)
             if(!beginBackgroundSession()) return
@@ -871,15 +902,25 @@ class SonyGalleryActivity : CameraderieActivity() {
                 val camera=MtpDevice(device);mtp=camera
                 if(!camera.open(connection)) { connection.close();error("MTP unavailable") }
                 val info=camera.deviceInfo ?: error("No identity")
-                val sonyModel=SonyCameraIdentity.ptp(info.manufacturer.orEmpty(),info.model.orEmpty(),null)
-                check(sonyModel!=null) { "The connected USB device is not a Sony media device" }
+                val modelName=if(usbOnly) SonyCameraIdentity.label(info.model) ?: SonyCameraIdentity.label(device.productName) ?: "USB camera"
+                    else checkNotNull(SonyCameraIdentity.ptp(info.manufacturer.orEmpty(),info.model.orEmpty(),null))
                 val value=object:Session {
-                    override val model=checkNotNull(sonyModel)
+                    override val model=modelName
                     override val needsFolderStaging=true
-                    override fun handles()=(camera.storageIds ?: intArrayOf()).flatMap { storage -> (camera.getObjectHandles(storage,0,0) ?: intArrayOf()).map { it.toLong() and 0xffffffffL } }
+                    override val originalsOnly=usbOnly
+                    override fun handles():List<Long> {
+                        val storageIds=checkNotNull(camera.storageIds).also { check(it.isNotEmpty()) }
+                        return storageIds.flatMap { storage ->
+                            checkNotNull(camera.getObjectHandles(storage,0,0)).map { it.toLong() and 0xffffffffL }
+                        }.distinct()
+                    }
                     override fun item(handle:Long):Item {
                         val obj=camera.getObjectInfo(handle.toInt()) ?: error("Object unavailable")
-                        return Item(handle,obj.compressedSizeLong,obj.name.orEmpty(),obj.format==0x3001,capture=if(obj.dateCreated>0) java.time.Instant.ofEpochMilli(obj.dateCreated).atZone(java.time.ZoneId.systemDefault()).let { CameraCaptureTime(it.toLocalDate(),it.toLocalTime(),it.offset) } else null)
+                        val name=obj.name.orEmpty()
+                        val capture=if(obj.dateCreated>0) java.time.Instant.ofEpochMilli(obj.dateCreated).atZone(java.time.ZoneId.systemDefault())
+                            .let { CameraCaptureTime(it.toLocalDate(),it.toLocalTime(),it.offset) } else null
+                        return Item(handle,obj.compressedSizeLong,name,obj.format==MtpConstants.FORMAT_ASSOCIATION,
+                            downloadable=!originalsOnly || AlbumMediaFile.document(name)!=null,capture=capture)
                     }
                     override fun copy(item:Item,uri:Uri,token:Int):Transfer {
                         contentResolver.openFileDescriptor(uri,"rw")!!.use { descriptor ->
@@ -891,7 +932,7 @@ class SonyGalleryActivity : CameraderieActivity() {
                     override fun close()=camera.close()
                 }
                 connected(value,token)
-            } catch(_:Exception) { mtp?.close();post(token) { disconnect("Camera USB transfer failed. Set USB Connection to MTP, unlock the phone, then reconnect the cable.") } }
+            } catch(_:Exception) { mtp?.close();post(token) { disconnect("Camera USB transfer failed. Select PTP or MTP on the camera, close other camera apps, then reconnect the cable.") } }
         }
     }
     private fun disconnect(message:String) {

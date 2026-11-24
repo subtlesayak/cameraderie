@@ -20,7 +20,8 @@ internal class SonyMediaBrowser(
     context:Context,private val ui:UiKit,private val select:(String)->Unit,
     private val saveSelected:(List<String>)->Unit,private val shareSelected:(List<String>)->Unit,
     private val importOptions:(List<String>)->Unit={},private val allowBatch:Boolean=true,private val onFilterChanged:()->Unit={},
-    private val queueSelected:((List<String>)->Unit)?=null,private val folderSelected:((List<String>)->Unit)?=null
+    private val queueSelected:((List<String>)->Unit)?=null,private val folderSelected:((List<String>)->Unit)?=null,
+    private val showQualityOptions:Boolean=true
 ):LinearLayout(context),Closeable {
     class Entry(val key:String,val name:String,val size:Long,val folder:Boolean,val downloadable:Boolean,val preview:()->ByteArray?,val detailPreview:()->ByteArray?,val capture:CameraCaptureTime?=null,val video:Boolean=false,val storageId:String?=null,val storageLabel:String?=null,val favourite:Boolean?=null) {
         val format get()=if(folder) "Folder" else name.substringAfterLast('.',"").uppercase(Locale.ROOT).ifBlank { "File" }
@@ -148,24 +149,22 @@ internal class SonyMediaBrowser(
     private fun selectionItem(item:Entry)=SonyMediaSelection.Item(item.key,item.name,item.size,item.folder,item.downloadable)
     private fun selectionOptions() {
         val eligible=entries.count { it.downloadable && !it.folder && it.size>0 }
-        val options=buildList {
-            add(if(eligible>500) "Select first 500 of $eligible eligible files in view" else "Select all $eligible eligible files in view")
-            add("Clear selection");add("Done selecting")
-            if(queueSelected==null)add("Import with different quality…")
-            if(folderSelected!=null && selection.keys().isNotEmpty())add("Import to folder")
+        val options=buildList<Pair<String,()->Unit>> {
+            val selectAll=if(eligible>500) "Select first 500 of $eligible eligible files in view" else "Select all $eligible eligible files in view"
+            add(selectAll to { selection.selectAll(entries.map { selectionItem(it) });Unit })
+            add("Clear selection" to { selection.clear() })
+            add("Done selecting" to { selecting=false;selection.clear() })
+            if(queueSelected==null && showQualityOptions) add("Import with different quality…" to {
+                if(selection.keys().isNotEmpty()) importOptions(selection.keys())
+            })
+            if(folderSelected!=null && selection.keys().isNotEmpty()) add("Import to folder" to { folderSelected.invoke(selection.keys()) })
         }
-        val choices=object:ArrayAdapter<String>(context,android.R.layout.simple_list_item_1,options) {
+        val choices=object:ArrayAdapter<String>(context,android.R.layout.simple_list_item_1,options.map { it.first }) {
             override fun areAllItemsEnabled()=false
             override fun isEnabled(position:Int)=position!=0 || activeShoot?.hasTimes!=false
         }
         MaterialAlertDialogBuilder(context).setTitle("${selection.keys().size} selected").setAdapter(choices) { _,index ->
-            when(index) {
-                0 -> selection.selectAll(entries.map { selectionItem(it) })
-                1 -> selection.clear()
-                2 -> { selecting=false;selection.clear() }
-                3 -> if(selection.keys().isNotEmpty()) importOptions(selection.keys())
-                4 -> folderSelected?.invoke(selection.keys())
-            }
+            options[index].second()
             refreshSelection()
         }.create().also { SonyScreenWindows.showMedia(it,context) }
     }
@@ -302,10 +301,12 @@ internal class SonyMediaBrowser(
         val cached=loader.cached(cacheKey(item))
         if(cached!=null) { image.setImageBitmap(cached);previewStatus.text="Camera thumbnail · Loading larger preview…" }
         ui.add(body,previewStatus,8);ui.add(body,ui.text(item.metadata),12)
-        ui.add(body,ui.text("Preview is separate from the file offered for import. Sony can offer a JPEG conversion instead of a card-original ARW.",UiKit.Type.small,secondary=true),8)
         if(!item.downloadable) ui.add(body,ui.text("No downloadable full-size representation with a known size was offered.",UiKit.Type.small,secondary=true),8)
-        ui.add(body,ui.text("Import quality: ${SonyImportPreferences(context).choice.label}",UiKit.Type.small,secondary=true),8)
-        ui.add(body,ui.action("Choose quality for this import…") { dialog?.dismiss();options() },8)
+        if(showQualityOptions) {
+            ui.add(body,ui.text("Preview is separate from the file offered for import. Sony can offer a JPEG conversion instead of a card-original ARW.",UiKit.Type.small,secondary=true),8)
+            ui.add(body,ui.text("Import quality: ${SonyImportPreferences(context).choice.label}",UiKit.Type.small,secondary=true),8)
+            ui.add(body,ui.action("Choose quality for this import…") { dialog?.dismiss();options() },8)
+        }
         if(item.downloadable && folder!=null)ui.add(body,ui.action("Import to folder") { dialog?.dismiss();folder() },8)
         val scroll=ScrollView(context).apply { addView(body) }
         val opened=MaterialAlertDialogBuilder(context).setTitle(item.name).setView(scroll).setNegativeButton("Close",null)

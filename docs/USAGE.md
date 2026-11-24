@@ -12,6 +12,12 @@ File import works independently of camera brand. Supported files include JPEG, H
 
 Choose the adapter in Cameraderie and follow its pairing or connection prompt. The [compatibility matrix](COMPATIBILITY.md) lists connection methods and available features. If the camera is recording or busy, finish the capture before opening playback. To continue interrupted downloads, reconnect to the same camera, refresh its catalogue, and open **Download queue**. Review any prompts to restart a transfer.
 
+### Connect over USB
+
+1. Connect the camera with a data cable to an Android phone with USB host support. Choose PTP, MTP, or the camera’s media-transfer option.
+2. Tap **Connect a USB camera** in Cameraderie and grant Android access to the selected device. When the catalogue loads, select the files to import.
+3. Choose the phone album or a destination folder. Cameraderie verifies the saved bytes against the transferred file. If Android presents the camera as a drive instead, use **Import from files or a memory card**.
+
 ## Edit a video
 
 Open a verified original from **Library** and tap **Edit video**. Set the crop directly in the preview and drag the two trim handles to choose the range. Use **Find LUT** to choose a `.cube` file and **Video format** to select the encoder. The app shows Main 10 availability for the device and source. **Export MP4** publishes a separate file. When a compatible checkpoint is available, **Resume export** continues it. You can start a fresh export if the checkpoint fails verification.

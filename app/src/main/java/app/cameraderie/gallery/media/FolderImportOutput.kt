@@ -82,7 +82,7 @@ internal class FolderImportOutput(private val context: Context, private val tree
             val hash=checkNotNull(copied.sha256)
             check(copied.bytes==item.bytes)
             val stagedIdentity=verifyPending(pending,item.bytes,hash,cancelled,
-                file.raw && draft.provenance==ImportProvenance.OFFERED_CAMERA_BYTES)
+                file.mime in setOf("image/x-sony-arw", "image/x-adobe-dng") && draft.provenance==ImportProvenance.OFFERED_CAMERA_BYTES)
             val verifiedFile=stagedIdentity?.takeIf { file.mime=="image/jpeg" && hasLocationMetadata(pending)==true }
             validate(pending)
             if(cancelled()) throw InterruptedIOException()

@@ -44,6 +44,7 @@ class MainActivity : CameraderieActivity() {
     private lateinit var browseDji: Button
     private lateinit var closeDji: Button
     private lateinit var openSony: Button
+    private lateinit var openUsb: Button
     private lateinit var shoot: Button
     private lateinit var shootingPanel: View
     private lateinit var shootingStatus: TextView
@@ -137,13 +138,17 @@ class MainActivity : CameraderieActivity() {
             ui.add(controls, button, 8)
         }
         ui.add(controls, shootingFeedback, 12)
-        val sony = ui.card(body, CameraAdapters.sonyA6400.name)
+        val sony = ui.card(body, "Sony cameras")
         openSony = ui.action("Connect Sony · Wi-Fi or USB") {
             startActivity(SonyGalleryActivity.connectionIntent(this, SonyGalleryActivity.attachedUsbCamera(this) != null))
         }
         ui.add(sony, openSony)
         ui.add(sony, ui.text("Camera files via ${CameraAdapters.sonyA6400.transports.joinToString(" or ")}", secondary = true), 8)
         ui.add(sony, ui.action("Default photo import quality") { SonyImportPreferences(this).show(this) }, 8)
+        val usb = ui.card(body, "USB cameras")
+        openUsb = ui.action("Connect a USB camera") { startActivity(SonyGalleryActivity.usbConnectionIntent(this)) }
+        ui.add(usb, openUsb)
+        ui.add(usb, ui.text("Browse and import over PTP or MTP.", secondary = true), 8)
         val privacy = ui.card(body, "Privacy")
         val prefs = SonyImportPreferences(this)
         val screenshots = ui.toggle("Allow gallery screenshots") { allowed ->
@@ -292,6 +297,7 @@ class MainActivity : CameraderieActivity() {
         closeDji.isEnabled = state.stage != GalleryConnectFlow.Stage.RESTORING
         closeDji.text = if (pairing) "Cancel authorization" else "Disconnect"
         openSony.isEnabled = !current.sessionActive && !pairing && !shooting
+        openUsb.isEnabled = openSony.isEnabled
         updateChooser(current)
     }
 

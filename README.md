@@ -22,10 +22,27 @@ Cameraderie requires Android 12 (API 31) or later. File and memory card imports 
 
 Any camera that implements a protocol supported by Cameraderie should work with the corresponding adapter if it meets the adapter’s model and firmware requirements. Available features depend on the commands the camera exposes. [Camera compatibility](docs/COMPATIBILITY.md)
 
+## Camera models
+
+| Camera models | Connection to try | Cameraderie status |
+| --- | --- | --- |
+| DJI Osmo Action 6 | Bluetooth and local Wi-Fi | Shooting and gallery adapter implemented. Physical verification pending. |
+| DJI Osmo Action 5 Pro, Action 4, Osmo 360 | DJI R SDK over Bluetooth and USB file transfer where offered | Candidates for model-by-model testing. |
+| DJI Osmo Action 3, Osmo Nano | USB file transfer | Candidates for wired transfer testing. |
+| Sony a6400 (ILCE-6400) | Sony media transfer over local Wi-Fi and USB MTP | Gallery adapter implemented. Physical verification pending. |
+| Sony a6100 (ILCE-6100), a6600 (ILCE-6600) | Sony media transfer over local Wi-Fi and USB MTP | Candidates for the same media adapter and the general USB path. |
+| Nikon Z6III, Z8 | USB MTP/PTP | Candidates for the general USB path. |
+| Fujifilm X-T5, Canon EOS R50 | USB PTP or the camera’s photo transfer mode | Candidates for wired transfer testing. |
+| GoPro HERO12 Black, HERO13 Black | Open GoPro over Bluetooth and HTTP | Candidates for a separate adapter. |
+| Insta360 X4, X5 | USB file transfer | Candidates for Android’s storage picker and future adapter work. |
+| Other cameras | USB PTP/MTP, USB storage, or a memory card | Use the connection mode exposed by the camera and supported by the phone. |
+
+The USB adapter discovers standard PTP/MTP interfaces across camera brands. Wireless browsing and shooting controls depend on each camera’s protocol and capabilities. [Protocol analysis and hardware verification](docs/COMPATIBILITY.md)
+
 ## Tested
 
-- **Android device.** 39 native checks passed on the Galaxy S24 FE.
-- **Build.** 591 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
+- **Android device.** 39 native checks passed on an Android 12 emulator. The earlier Galaxy S24 FE build also passed 39 native checks.
+- **Build.** 594 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
 - **Direct camera connections.** Physical testing is pending for the standalone app. Results will be recorded by camera model, firmware, and transport. [Camera compatibility](docs/COMPATIBILITY.md)
 
 ## Get the app
