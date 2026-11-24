@@ -422,12 +422,17 @@ class SonyMediaNativeTest {
     @Test fun bundledNoticesRenderActualVersionAndRetainResearchAndLicenseProvenance() {
         val instrumentation=NativeChecks.instance
         val expected = setOf("APACHE_2_0.txt", "DJI_SOURCE_LICENSE.txt", "NORDIC_BLE_LICENSE.txt",
-            "KOTLIN_THIRD_PARTY_NOTICES.txt", "OSMOSIS_REFERENCE_LICENSE.txt")
+            "KOTLIN_THIRD_PARTY_NOTICES.txt", "OSMOSIS_REFERENCE_LICENSE.txt", "CAMERADERIE_MIT_NOTICE.txt")
         assertTrue(context.assets.list("").orEmpty().toSet().containsAll(expected))
         for (file in expected) {
             val text = context.assets.open(file).bufferedReader().use { it.readText() }
             assertTrue(text.length > 100)
         }
+        val runtime = context.assets.open("RESOLVED_RUNTIME_LIBRARIES.txt").bufferedReader().use { it.readLines() }
+        assertEquals(runtime.distinct().sorted(), runtime)
+        assertTrue(runtime.any { it.startsWith("androidx.media3:media3-transformer:") })
+        assertTrue(runtime.any { it.startsWith("no.nordicsemi.android:ble:") })
+        assertFalse(runtime.any { it.startsWith("junit:") || it.startsWith("com.squareup.okhttp3:mockwebserver:") })
         val activity=instrumentation.startActivitySync(Intent(context,app.cameraderie.ui.NoticesActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS))
         try {
             val version=context.packageManager.getPackageInfo(context.packageName,0).longVersionCode

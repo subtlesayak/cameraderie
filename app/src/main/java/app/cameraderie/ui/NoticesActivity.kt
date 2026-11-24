@@ -18,13 +18,13 @@ import java.util.concurrent.Future
 /** Bundled public notices only. No camera/network/service or permission action. */
 class NoticesActivity:CameraderieActivity() {
     private val documents=listOf(
-        "Resolved Android runtime libraries" to RUNTIME_LIBRARIES_ASSET,
         "Apache License 2.0" to "APACHE_2_0.txt",
-        "Earlier Cameraderie MIT notice" to "CAMERADERIE_MIT_NOTICE.txt",
         "Osmosis reference license" to "OSMOSIS_REFERENCE_LICENSE.txt",
         "DJI source notice" to "DJI_SOURCE_LICENSE.txt",
         "Nordic BLE license" to "NORDIC_BLE_LICENSE.txt",
-        "Kotlin standard library notices" to "KOTLIN_THIRD_PARTY_NOTICES.txt")
+        "Kotlin standard library notices" to "KOTLIN_THIRD_PARTY_NOTICES.txt",
+        "Resolved Android runtime libraries" to RUNTIME_LIBRARIES_ASSET,
+        "Earlier Cameraderie MIT notice" to "CAMERADERIE_MIT_NOTICE.txt")
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
     private var request:Future<*>?=null
