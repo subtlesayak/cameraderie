@@ -2,7 +2,6 @@ package app.cameraderie.gallery.media.edit
 
 import android.content.Context
 import android.opengl.GLES30
-import android.util.Half
 import androidx.annotation.OptIn
 import androidx.media3.common.VideoFrameProcessingException
 import androidx.media3.common.util.GlProgram
@@ -13,8 +12,6 @@ import androidx.media3.effect.BaseGlShaderProgram
 import androidx.media3.effect.GlEffect
 import app.cameraderie.R
 import java.io.IOException
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /** A floating-point 3D texture and render target for the Rec.709 Main 10 export graph. */
 @OptIn(UnstableApi::class)
@@ -88,19 +85,16 @@ internal class Main10LutEffect(private val lut: CubeLut) : GlEffect {
                 GLES30.glTexParameteri(target, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE)
                 GLES30.glTexParameteri(target, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
                 GLES30.glTexParameteri(target, GLES30.GL_TEXTURE_WRAP_R, GLES30.GL_CLAMP_TO_EDGE)
-                // The .cube file is x-fastest. Upload explicit four-channel half-float texels.
-                val rgba = ByteBuffer.allocateDirect(lut.rgb.size / 3 * 4 * Short.SIZE_BYTES)
-                    .order(ByteOrder.nativeOrder()).asShortBuffer()
-                val opaque = Half.toHalf(1f)
-                for (index in lut.rgb.indices step 3) {
-                    rgba.put(Half.toHalf(lut.rgb[index]))
-                    rgba.put(Half.toHalf(lut.rgb[index + 1]))
-                    rgba.put(Half.toHalf(lut.rgb[index + 2]))
-                    rgba.put(opaque)
+                // The .cube file is x-fastest. Keep four source components explicit,
+                // then let GLES store them as half floats in the texture.
+                val rgba = FloatArray(lut.rgb.size / 3 * 4)
+                for (texel in 0 until rgba.size / 4) {
+                    val offset = texel * 4
+                    lut.rgb.copyInto(rgba, offset, texel * 3, texel * 3 + 3)
+                    rgba[offset + 3] = 1f
                 }
-                rgba.position(0)
                 GLES30.glTexImage3D(target, 0, GLES30.GL_RGBA16F, lut.size, lut.size, lut.size, 0,
-                    GLES30.GL_RGBA, GLES30.GL_HALF_FLOAT, rgba)
+                    GLES30.GL_RGBA, GLES30.GL_FLOAT, GlUtil.createBuffer(rgba))
                 GlUtil.checkGlError()
                 return id[0]
             } catch (error: GlUtil.GlException) {
