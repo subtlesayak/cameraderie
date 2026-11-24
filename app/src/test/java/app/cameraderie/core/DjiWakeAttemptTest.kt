@@ -1,5 +1,6 @@
 package app.cameraderie.core
 
+import app.gripbridge.core.DjiWakeAttempt
 import org.junit.Assert.*
 import org.junit.Test
 

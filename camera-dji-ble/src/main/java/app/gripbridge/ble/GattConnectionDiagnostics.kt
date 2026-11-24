@@ -1,8 +1,8 @@
-package app.cameraderie.ble
+package app.gripbridge.ble
 
 import android.os.Build
 
-internal object GattConnectionDiagnostics {
+object GattConnectionDiagnostics {
     fun available(): Boolean =
         Build.VERSION.SDK_INT >= 36 && Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.CINNAMON_BUN_2
 

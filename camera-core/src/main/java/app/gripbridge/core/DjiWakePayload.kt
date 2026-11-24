@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 /** DJI's documented FF manufacturer AD: ASCII WKP followed by target MAC in reverse order. */
 object DjiWakePayload {

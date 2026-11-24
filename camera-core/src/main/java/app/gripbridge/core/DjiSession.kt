@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 /** All methods run on one owner thread. Transport callback means final GATT write completed. */
 class DjiSession(
@@ -232,7 +232,8 @@ class DjiSession(
         }
     }
     private fun reject(reason: String) { lastCommand = reason; log(reason); changed() }
-    internal fun prepareRoutineRecording(start: Boolean): ((TargetDelivery) -> Unit) -> Unit {
+    /** Prepares a recording request bound to the current authorized session and awake period. */
+    fun prepareRoutineRecording(start: Boolean): ((TargetDelivery) -> Unit) -> Unit {
         val authorizedGeneration = generation.takeIf { auth == Auth.AUTHORIZED }
         val awakeGeneration = sleepGeneration.takeUnless { trafficSuspended }
         return { complete ->

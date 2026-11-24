@@ -1,6 +1,6 @@
 package app.cameraderie.camera
 
-import app.cameraderie.core.Recording
+import app.gripbridge.core.Recording
 
 /** UI-facing descriptions keep camera transports and capability decisions in the adapter. */
 internal object CameraAdapters {

@@ -1,5 +1,6 @@
 package app.cameraderie.core
 
+import app.gripbridge.core.DjiGattSetup
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue

@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 data class TargetDelivery(val state: State, val detail: String) {
     enum class State { WAITING, SENT, ACKNOWLEDGED, FAILED, UNKNOWN }

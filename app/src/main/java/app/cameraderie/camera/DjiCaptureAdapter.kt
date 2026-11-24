@@ -1,9 +1,9 @@
 package app.cameraderie.camera
 
-import app.cameraderie.ble.DjiCameraClient
+import app.gripbridge.ble.DjiCameraClient
 import app.cameraderie.core.CameraDetails
-import app.cameraderie.core.DjiSession
-import app.cameraderie.core.Recording
+import app.gripbridge.core.DjiSession
+import app.gripbridge.core.Recording
 
 internal class DjiCaptureAdapter(private val client: DjiCameraClient) : CaptureAdapter {
     override val profile = CameraAdapters.action6

@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 /** Bounded wake experiment. Advertising completion alone is never camera success. */
 class DjiWakeAttempt(private val now: () -> Long, private val reconnect: () -> Unit, private val report: (String) -> Unit) {

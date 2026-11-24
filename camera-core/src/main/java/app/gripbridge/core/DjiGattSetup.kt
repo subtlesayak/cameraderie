@@ -1,7 +1,7 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 /** Only the current DJI control connection can complete setup and authorize the protocol. */
-internal class DjiGattSetup<Connection : Any> {
+class DjiGattSetup<Connection : Any> {
     private enum class Phase { CONNECTING, SUBSCRIBING, SUBSCRIBED, READY }
 
     var connection: Connection? = null

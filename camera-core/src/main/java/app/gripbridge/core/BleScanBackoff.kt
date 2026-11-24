@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 /** Retained across link/radio resets so repeated user retries cannot exhaust Android's scan budget. */
 class BleScanBackoff {

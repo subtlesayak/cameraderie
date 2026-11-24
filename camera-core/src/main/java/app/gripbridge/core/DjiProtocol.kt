@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 /** Independently implemented DJI R SDK wire format. See docs/RESEARCH.md. */
 object DjiProtocol {

@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 /** Model identity is the authorization ID, never the legacy product/version text. */
 data class CameraProfile(val id: Int, val name: String, val controlsEnabled: Boolean, val videoMode: Int, val photoMode: Int, val modeAckAliases: Set<Int> = emptySet())

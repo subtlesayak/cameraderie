@@ -41,7 +41,7 @@ dependencies {
     implementation("androidx.media3:media3-effect:$media3Version")
     implementation("androidx.media3:media3-transformer:$media3Version")
     implementation("androidx.media3:media3-ui:$media3Version")
-    implementation("no.nordicsemi.android:ble:2.11.0")
+    implementation(project(":camera-dji-ble"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("androidx.exifinterface:exifinterface:1.4.2")
     androidTestImplementation("junit:junit:4.13.2")

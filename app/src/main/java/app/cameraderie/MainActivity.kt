@@ -20,8 +20,8 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import app.cameraderie.camera.CameraAdapters
 import app.cameraderie.camera.CaptureCommand
-import app.cameraderie.core.DjiSession
-import app.cameraderie.core.Recording
+import app.gripbridge.core.DjiSession
+import app.gripbridge.core.Recording
 import app.cameraderie.gallery.GalleryConnectFlow
 import app.cameraderie.gallery.GalleryConnectionUi
 import app.cameraderie.gallery.media.DocumentImportActivity

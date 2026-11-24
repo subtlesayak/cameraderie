@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 enum class Recording { UNKNOWN, IDLE, RECORDING }
 data class CameraStatus(val mode: Int, val state: Int, val seconds: Int, val battery: Int, val power: Int, val heat: Int, val nextMode: Int = mode,

@@ -1,12 +1,13 @@
 @file:Suppress("DEPRECATION")
-package app.cameraderie.ble
+package app.gripbridge.ble
 
 import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.bluetooth.le.*
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.*
-import app.cameraderie.core.*
+import app.gripbridge.core.*
 import no.nordicsemi.android.ble.BleManager
 import no.nordicsemi.android.ble.observer.ConnectionObserver
 import java.security.SecureRandom
@@ -16,15 +17,15 @@ import java.util.UUID
 @SuppressLint("MissingPermission")
 class DjiCameraClient(
     context: Context,
+    private val prefs: SharedPreferences,
     private val log: (String) -> Unit,
-    private val changed: () -> Unit,
-    private val onControlLinkOpened: (Long) -> Unit,
-    private val onControlLinkClosed: () -> Unit,
+    private val changed: () -> Unit = {},
+    private val onControlLinkOpened: (Long) -> Unit = {},
+    private val onControlLinkClosed: () -> Unit = {},
 ) {
     data class Found(val device: BluetoothDevice, val name: String, val rssi: Int)
     private val app = context.applicationContext
     private val adapter get() = app.getSystemService(BluetoothManager::class.java).adapter
-    private val prefs = app.getSharedPreferences("dji",Context.MODE_PRIVATE)
     private val cameraMemory = RememberedCamera(object : CameraBookmarkStore {
         override fun read() = CameraBookmark.create(prefs.getString("saved_address",null),prefs.getString("saved_name",null))
         override fun migrationDone() = prefs.getBoolean("selection_migrated",false)
@@ -37,8 +38,8 @@ class DjiCameraClient(
         }
     })
     val savedCamera get() = cameraMemory.current
-    internal val hasAuthorizedBookmark get() = savedCamera?.let { prefs.getBoolean("paired_${it.address}",false) } == true
-    internal val hasOpenGatt get() = setup.connection != null
+    val hasAuthorizedBookmark get() = savedCamera?.let { prefs.getBoolean("paired_${it.address}",false) } == true
+    val hasOpenGatt get() = setup.connection != null
     var autoConnectSaved: Boolean
         get() = prefs.getBoolean("auto_connect_saved",true)
         set(value) { prefs.edit().putBoolean("auto_connect_saved",value).apply() }
@@ -55,7 +56,7 @@ class DjiCameraClient(
     },{ message -> link = message; log(message); changed() })
     val waking get() = wakeAttempt.active
     private val setup = DjiGattSetup<ControlConnection>()
-    internal var controlLinkOpenedAtNanos = 0L
+    var controlLinkOpenedAtNanos = 0L
         private set
     private var scan: ScanCallback? = null
     private var scanGeneration = 0
@@ -77,7 +78,7 @@ class DjiCameraClient(
         val limit: WriteLimit?, var offset: Int = 0,
     )
     private var writeOrigin = WriteOrigin.LOCAL
-    internal data class WriteLimit(val owner: Any, val deadlineMs: Long)
+    data class WriteLimit(val owner: Any, val deadlineMs: Long)
     private var writeLimit: WriteLimit? = null
     private val writes = ArrayDeque<Write>()
     private var writing = false
@@ -90,7 +91,7 @@ class DjiCameraClient(
     val session = DjiSession(identity,protocolAddress,SystemClock::elapsedRealtime,::enqueue,log,changed) {
         prefs.edit().putBoolean("paired_$selectedAddress",true).putInt("code_$selectedAddress",verificationCode).apply()
         if (!cameraMemory.rememberAuthorized(selectedAddress,selectedName)) log("Camera authorized, but saving its shortcut failed")
-        else log("Camera authorized and saved locally")
+        else log("Camera saved locally for next bridge start")
         link = "BLE connected; camera authorized"
     }
     private val framer = DjiFramer(log)
@@ -249,7 +250,7 @@ class DjiCameraClient(
         changed()
     }
 
-    internal fun remoteAction(gamepad: Boolean = false, limit: WriteLimit? = null, block: () -> Unit) {
+    fun remoteAction(gamepad: Boolean = false, limit: WriteLimit? = null, block: () -> Unit) {
         val previous = writeOrigin
         val previousLimit = writeLimit
         writeOrigin = if (gamepad) WriteOrigin.GAMEPAD else WriteOrigin.REMOTE
@@ -262,18 +263,18 @@ class DjiCameraClient(
         }
     }
 
-    internal fun discardUnsentRemoteActions(): Boolean {
+    fun discardUnsentRemoteActions(): Boolean {
         val first = writes.peekFirst()
         if (first != null && first.origin != WriteOrigin.LOCAL && (writing || first.offset > 0)) return false
         discardWrites(writes.filter { it.origin != WriteOrigin.LOCAL })
         return true
     }
 
-    internal fun discardUnsentGamepadActions() {
+    fun discardUnsentGamepadActions() {
         discardUnsentWrites { it.origin == WriteOrigin.GAMEPAD }
     }
 
-    internal fun discardUnsentAction(owner: Any) {
+    fun discardUnsentAction(owner: Any) {
         discardUnsentWrites { it.limit?.owner === owner }
     }
 

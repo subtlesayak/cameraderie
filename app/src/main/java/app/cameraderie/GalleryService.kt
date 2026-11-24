@@ -16,9 +16,9 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
-import app.cameraderie.ble.DjiCameraClient
+import app.gripbridge.ble.DjiCameraClient
 import app.cameraderie.camera.DjiCaptureAdapter
-import app.cameraderie.core.DjiSession
+import app.gripbridge.core.DjiSession
 import app.cameraderie.gallery.CameraSessionOwnership
 import app.cameraderie.gallery.GalleryConnectFlow
 import app.cameraderie.gallery.GalleryController
@@ -58,7 +58,7 @@ class GalleryService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        dji = DjiCameraClient(this, ::log, {}, {}, {})
+        dji = DjiCameraClient(this, getSharedPreferences("dji", MODE_PRIVATE), ::log)
         capture = DjiCaptureAdapter(dji)
         notifications.createNotificationChannel(NotificationChannel(CHANNEL, "Camera sessions", NotificationManager.IMPORTANCE_LOW))
         handler.post(tick)

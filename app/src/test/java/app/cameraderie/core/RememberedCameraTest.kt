@@ -1,5 +1,8 @@
 package app.cameraderie.core
 
+import app.gripbridge.core.CameraBookmark
+import app.gripbridge.core.CameraBookmarkStore
+import app.gripbridge.core.RememberedCamera
 import org.junit.Assert.*
 import org.junit.Test
 

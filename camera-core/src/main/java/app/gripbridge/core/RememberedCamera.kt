@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 /** Local camera shortcut, separate from protocol authorization and OS bonding. */
 data class CameraBookmark(val address: String, val name: String) {

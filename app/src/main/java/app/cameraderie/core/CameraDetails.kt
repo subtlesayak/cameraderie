@@ -1,5 +1,7 @@
 package app.cameraderie.core
 
+import app.gripbridge.core.CameraStatus
+
 /** Readable values from documented 1D02 fields, never fabricated for unknown codes. */
 object CameraDetails {
     fun resolution(s: CameraStatus): String = if(s.mode == 5) when(s.resolutionCode) {

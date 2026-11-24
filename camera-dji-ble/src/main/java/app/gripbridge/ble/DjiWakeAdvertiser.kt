@@ -1,4 +1,4 @@
-package app.cameraderie.ble
+package app.gripbridge.ble
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
@@ -6,7 +6,7 @@ import android.bluetooth.le.*
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import app.cameraderie.core.DjiWakePayload
+import app.gripbridge.core.DjiWakePayload
 
 /** A separate, short connectable advertisement matching the SDK ADV_TYPE_IND. Sony advertising remains independently owned. */
 @SuppressLint("MissingPermission")

@@ -1,4 +1,4 @@
-package app.cameraderie.core
+package app.gripbridge.core
 
 /** 0000 response: uint16 result, 16-byte product, then device-supplied version text. */
 data class DjiFirmwareInfo(val product: String?, val sdk: String?, val firmware: String?, val reportedName: String?, val versionText: String, val rawTailHex: String) {
