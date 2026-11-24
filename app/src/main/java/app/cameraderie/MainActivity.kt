@@ -30,6 +30,7 @@ import app.cameraderie.gallery.media.history.ImportedImagesActivity
 import app.cameraderie.gallery.net.CameraWifiAccess
 import app.cameraderie.sony.SonyGalleryActivity
 import app.cameraderie.sony.SonyImportPreferences
+import app.cameraderie.sony.SonyViewfinderActivity
 import app.cameraderie.ui.CameraderieActivity
 import app.cameraderie.ui.UiKit
 import app.cameraderie.ui.openAppPermissionSettings
@@ -44,6 +45,7 @@ class MainActivity : CameraderieActivity() {
     private lateinit var browseDji: Button
     private lateinit var closeDji: Button
     private lateinit var openSony: Button
+    private lateinit var openSonyViewfinder: Button
     private lateinit var openUsb: Button
     private lateinit var shoot: Button
     private lateinit var shootingPanel: View
@@ -143,6 +145,8 @@ class MainActivity : CameraderieActivity() {
             startActivity(SonyGalleryActivity.connectionIntent(this, SonyGalleryActivity.attachedUsbCamera(this) != null))
         }
         ui.add(sony, openSony)
+        openSonyViewfinder = ui.action("Open Sony USB viewfinder") { open(SonyViewfinderActivity::class.java) }
+        ui.add(sony, openSonyViewfinder, 8)
         ui.add(sony, ui.text("Camera files via ${CameraAdapters.sonyA6400.transports.joinToString(" or ")}", secondary = true), 8)
         ui.add(sony, ui.action("Default photo import quality") { SonyImportPreferences(this).show(this) }, 8)
         val usb = ui.card(body, "USB cameras")
@@ -298,6 +302,7 @@ class MainActivity : CameraderieActivity() {
         closeDji.text = if (pairing) "Cancel authorization" else "Disconnect"
         openSony.isEnabled = !current.sessionActive && !pairing && !shooting
         openUsb.isEnabled = openSony.isEnabled
+        openSonyViewfinder.isEnabled = openSony.isEnabled
         updateChooser(current)
     }
 

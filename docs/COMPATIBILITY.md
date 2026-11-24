@@ -7,17 +7,20 @@ Cameraderie imports files independently of camera brand through Android’s file
 | DJI Osmo Action 6 | Bluetooth | Discovery, authorization, reconnect, firmware readout, photo shutter, normal-video record start and stop, Photo/Video mode selection. Camera status gates commands and gallery entry. | Pending. Record firmware, confirm results on the camera, and test blocked gallery entry during recording. |
 | DJI Osmo Action 6 | Bluetooth → local Wi-Fi | Idle preflight, playback handoff, SD and internal catalogues, Media3 playback of supported proxies, verified original downloads, durable queue, validated range resume and explicit restart. | Pending. Repeat incomplete catalogue and permission recovery, DNG and WAV companions, and return to shooting on the same camera. |
 | Sony α7 III (ILCE-7M3) | Local Wi-Fi | Sony media discovery, gallery browsing, and JPEG import. | QR, model discovery, catalogue, saved reconnect, and Original/2M/VGA JPEG passed on Galaxy S24 FE. [Hardware test details](#sony-α7-iii-hardware-test) |
+| Sony α7 III (ILCE-7M3) | USB PC Remote | USB viewfinder, camera identity, and firmware detection. | Live-view frames verified with an independent macOS PTP probe on firmware 4.0. Galaxy verification pending. |
 | Sony α7 III (ILCE-7M3) | USB MTP | Sony documents MTP access to the card in slot 1. | Pending physical USB and independent comparison with a card original. |
 | Sony a6400 | Local Wi-Fi | QR, manual and saved reconnect, catalogue and capture-date browsing, Original/2M/VGA JPEG choices, and verified import. | Pending. Repeat each JPEG option and record model and firmware. |
+| Sony a6400 | USB PC Remote | Candidate for the same Sony USB viewfinder. | Pending physical test. |
 | Sony a6400 | USB MTP | USB discovery, Android’s access prompt, browse and import files the camera exposes. | Pending physical USB and genuine ARW byte comparison against an independent card read. |
 
-Live preview, focus and exposure are unverified in the initial adapters. The Sony transport currently exposes gallery operations. Add GoPro, Canon, Nikon, and Insta360 after documenting the adapter's supported models and physical results.
+Sony USB PC Remote and Sony Wi-Fi media transfer expose separate features. Sony shutter, recording, focus, exposure, and settings controls in Cameraderie remain pending. Each camera family tracks physical support by model, firmware, and transport.
 
 ## Protocol compatibility across models
 
 | Protocol or connection | Initial models and candidates | What to verify |
 | --- | --- | --- |
 | USB PTP/MTP | Sony α7 III, a6400, a6100 and a6600, Nikon Z6III and Z8, and Fujifilm X-T5. Canon EOS R50 offers a USB photo-transfer mode and is a candidate for interface discovery. | Check the advertised interface and Android permission, read each storage unit, browse the catalogue, and compare a JPEG, video, and supported RAW import with the camera original. |
+| Sony USB PC Remote | Sony lists α7 III, a6400, and other Alpha models in its Camera Remote Command family. | Test Sony PTP discovery, displayed live view, autofocus, shutter, recording status and controls, settings, and return from import to shooting on each model. [Sony Camera Remote Command](https://support.d-imaging.sony.co.jp/app/cameraremotecommand/en/index.html) |
 | Sony local media transfer | Sony α7 III tested for QR, browsing, and Original JPEG. Sony a6400, a6100, and a6600 are candidates for the same workflow. | Check QR and manual Wi-Fi, Sony identity, a usable media catalogue, offered JPEG sizes, and original file downloads on each firmware. |
 | DJI R SDK over Bluetooth | DJI Osmo Action 6, Action 5 Pro, Action 4, and Osmo 360. | Check authorization, fresh status and command acknowledgments for each model. Verify the gallery Wi-Fi handoff separately. |
 | DJI USB file transfer | DJI Osmo Action 6, Action 5 Pro, Action 4, Action 3, Osmo 360, and Osmo Nano where DJI lists Android OTG. | Identify whether the phone sees PTP/MTP or a volume. Verify the appropriate Cameraderie import path using originals. |
@@ -43,6 +46,22 @@ On 24 November 2026, Cameraderie connected a physical Sony α7 III to a Galaxy S
 All three copies retained the capture date. Separate SHA-256 checks of the files in the Cameraderie album matched the completed import receipts. The original JPEG's saved bytes matched the file streamed from the camera. All three copies appeared in the offline Library after disconnecting.
 
 Firmware, RAW, video, USB MTP, and a separate hash of the card original remain to be verified. Sony documents the α7 III’s transfer mode and USB MTP access to the card in slot 1. [Sony Wi-Fi guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001653186.html) · [Sony USB guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
+
+### USB PC Remote
+
+The α7 III reported firmware 4.0 in PC Remote mode. An independent macOS Image Capture PTP probe opened the Sony session, read the camera properties, and decoded four 1024 × 576 live-view frames. The camera advertised shutter and focus commands. Command effects and safe recording handoff need separate tests.
+
+To try the Android viewfinder, set **Ctrl w/ Smartphone** to **Off** and **USB Connection** to **PC Remote**, then attach the camera to the phone with a data cable. In Cameraderie, open **Sony USB viewfinder** and tap **Connect over USB**. [Sony USB setup](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
+
+## Camera acceptance checklist
+
+Record the camera model, firmware, Android device and version, lens, shooting mode, and transport. Check each connection mode the camera exposes and record the result for each feature.
+
+- Discover, pair or grant USB access, reconnect, and recover from denied permission and disconnect.
+- Confirm that the preview responds to changes in the scene. Check shutter, autofocus, exposure settings, recording start and stop, and camera-reported recording state where supported.
+- During recording, try to open the gallery and confirm the app protects the recording. Once idle, browse and import, then return to shooting and confirm the camera is ready.
+- Verify the catalogue on each accessible storage location. Import a JPEG, video, and RAW when available. Compare saved originals against an independent card read, and check filenames, timestamps, and receipts.
+- For transfers that support a queue or resume, interrupt one download and verify resumed bytes, duplicate detection, and a clean retry.
 
 ## Full media acceptance
 

@@ -10,7 +10,7 @@ Cameraderie is a brand-agnostic Android app for browsing camera media, importing
 
 ## Features
 
-- [Camera connections](docs/COMPATIBILITY.md) for discovery, shooting controls, media browsing, and proxy playback where the adapter supports them.
+- [Camera connections](docs/COMPATIBILITY.md) for discovery, live view, shooting controls, media browsing, and proxy playback where the adapter supports them.
 - [Verified imports](docs/USAGE.md#import-files) to the phone album or a selected folder, with duplicate detection and resumable camera downloads where supported.
 - [Video editing](docs/USAGE.md#edit-a-video) with in-preview crop, filmstrip trimming, full-resolution frame extraction, `.cube` LUTs, and AVC or 10-bit HEVC export.
 - [Ride telemetry](docs/USAGE.md#attach-ride-telemetry) from GPX, CSV, or JSON, aligned by capture time with an adjustable offset and highlight markers.
@@ -43,7 +43,7 @@ The USB adapter discovers standard PTP/MTP interfaces across camera brands. Wire
 ## Tested
 
 - **Android device.** 39 native checks passed on an Android 12 emulator. The earlier Galaxy S24 FE build also passed 39 native checks.
-- **Build.** 594 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
+- **Build.** 596 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
 - **Sony α7 III.** On a Galaxy S24 FE running Android 17, Cameraderie connected by Wi-Fi QR, browsed 789 entries, and reconnected from its saved camera entry. Original, 2M, and VGA JPEG imports passed independent saved-file checksum checks. [Hardware test details](docs/COMPATIBILITY.md#sony-α7-iii-hardware-test)
 
 ## Get the app

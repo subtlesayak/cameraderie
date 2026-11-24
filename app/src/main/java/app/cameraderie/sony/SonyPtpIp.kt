@@ -1,5 +1,7 @@
 package app.cameraderie.sony
 
+import app.cameraderie.camera.PtpDataset
+import app.cameraderie.camera.PtpDeviceInfo
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.EOFException
@@ -91,7 +93,7 @@ class SonyPtpIp(private val command: Socket, private val events: Socket,private 
 
     fun objectInfo(handle: Long): SonyPtpObject = guarded {
         checkOpen(); requireU32(handle)
-        val r = Dataset(collect(0x1008, listOf(handle)))
+        val r = PtpDataset(collect(0x1008, listOf(handle)))
         val storage = r.u32(); val format = r.u16(); r.u16(); val size = r.u32()
         r.skip(26); val parent = r.u32(); r.skip(10)
         val name = r.string()
@@ -107,11 +109,10 @@ class SonyPtpIp(private val command: Socket, private val events: Socket,private 
     }
 
     private fun parseDeviceInfo(data: ByteArray) {
-        val r = Dataset(data)
-        r.u16(); r.u32(); r.u16(); r.string(); r.u16()
-        operations = r.u16Array().toSet()
-        repeat(4) { r.u16Array() }
-        manufacturer = r.string(); model = r.string(); r.string(); r.string()
+        val info = PtpDeviceInfo.parse(data)
+        operations = info.operations
+        manufacturer = info.manufacturer
+        model = info.model
     }
 
     private fun collect(code: Int, params: List<Long> = emptyList(), id: Long = nextTransaction()): ByteArray {
@@ -204,28 +205,9 @@ class SonyPtpIp(private val command: Socket, private val events: Socket,private 
         stream.write(bytes(8).putInt(body.size + 8).putInt(type).array()); stream.write(body); stream.flush()
     }
     private fun u32Array(data: ByteArray): List<Long> {
-        val r = Dataset(data); val count = r.u32()
+        val r = PtpDataset(data); val count = r.u32()
         if (count > 100000 || data.size.toLong() != 4 + count * 4) fail("Invalid camera object list")
         return List(count.toInt()) { r.u32() }
-    }
-    private class Dataset(data: ByteArray) {
-        private val buffer = little(data)
-        private fun need(n: Int) { if (n < 0 || buffer.remaining() < n) fail("Truncated PTP metadata") }
-        fun u16(): Int { need(2); return buffer.short.toInt() and 65535 }
-        fun u32(): Long { need(4); return buffer.int.toLong() and 0xFFFFFFFFL }
-        fun skip(n: Int) { need(n); buffer.position(buffer.position() + n) }
-        fun optionalString():String?=if(buffer.hasRemaining()) string().takeIf { it.isNotBlank() } else null
-        fun string(): String {
-            need(1); val count = buffer.get().toInt() and 255
-            if (count == 0) return ""
-            need(count * 2); val raw = ByteArray(count * 2); buffer.get(raw)
-            if (raw[raw.size-1] != 0.toByte() || raw[raw.size-2] != 0.toByte()) fail("Unterminated PTP string")
-            return String(raw, 0, raw.size-2, Charsets.UTF_16LE)
-        }
-        fun u16Array(): List<Int> {
-            val count = u32(); if (count > 65536) fail("Invalid PTP capability list")
-            return List(count.toInt()) { u16() }
-        }
     }
     companion object {
         private const val MAX_FRAME = 64 * 1024 * 1024

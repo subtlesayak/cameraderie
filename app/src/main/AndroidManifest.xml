@@ -20,6 +20,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
     <application android:networkSecurityConfig="@xml/gallery_network_security" android:label="Cameraderie" android:theme="@style/Theme.Cameraderie" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true" android:icon="@drawable/ic_cameraderie">
         <activity android:name="com.journeyapps.barcodescanner.CaptureActivity" android:screenOrientation="portrait" tools:replace="android:screenOrientation" android:exported="false" />
+        <activity android:name=".sony.SonyViewfinderActivity" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout" android:exported="false" />
         <activity android:name=".sony.SonyQrCaptureActivity" android:screenOrientation="portrait" android:exported="false" />
         <!-- Geometry changes must keep the active Sony transfer and folder picker owner alive. -->
         <activity android:name=".sony.SonyGalleryActivity" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" android:exported="false" />
