@@ -1,0 +1,8 @@
+<resources>
+    <string name="qr_scan_button">Scan camera QR code</string>
+    <string name="qr_prompt">Point at the camera’s Wi-Fi QR code</string>
+    <string name="qr_scan_cancelled">Scan cancelled. You can scan again or enter the Wi-Fi details.</string>
+    <string name="qr_unsupported">This QR code does not contain Wi-Fi details supported by this camera adapter. Enter the details shown by the camera.</string>
+    <string name="qr_ready">QR code read. Connecting to camera Wi-Fi…</string>
+    <string name="qr_disconnect_first">Disconnect the current transfer before scanning another camera.</string>
+</resources>

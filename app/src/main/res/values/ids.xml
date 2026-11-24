@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item type="id" name="btn_pair_sony" />
+    <item type="id" name="btn_start_pairing" />
+    <item type="id" name="btn_bridge_toggle" />
+    <item type="id" name="btn_camera_action" />
+    <item type="id" name="tv_sony_status" />
+    <item type="id" name="tv_sony_guidance" />
+    <item type="id" name="tv_sony_pairing_countdown" />
+    <item type="id" name="nav_control" />
+    <item type="id" name="nav_gallery" />
+    <item type="id" name="nav_remote" />
+    <item type="id" name="nav_settings" />
+    <item type="id" name="main_navigation" />
+    <item type="id" name="main_page_selector" />
+    <item type="id" name="btn_gallery_connect" />
+    <item type="id" name="tv_gallery_test_status" />
+    <item type="id" name="btn_gallery_test_connect" />
+    <item type="id" name="btn_gallery_test_cancel" />
+    <item type="id" name="btn_gallery_test_retry" />
+    <item type="id" name="btn_gallery_test_reconnect" />
+    <item name="capture_time_input" type="id" />
+    <item name="telemetry_offset_input" type="id" />
+</resources>

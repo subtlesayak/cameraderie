@@ -1,0 +1,8 @@
+<resources>
+    <string name="video_editor_source">%1$s\n%2$d × %3$d · %4$s s</string>
+    <string name="video_editor_preview_unavailable">Couldn’t play this preview. You can still try exporting.</string>
+    <string name="video_editor_slider_value">%1$s · %2$s</string>
+    <string name="video_editor_full_frame">Full frame</string>
+    <string name="video_editor_crop_size">Crop · %1$d × %2$d</string>
+    <string name="video_editor_format_choice">Video format · %1$s</string>
+</resources>

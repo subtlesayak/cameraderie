@@ -1,0 +1,36 @@
+.gradle/
+.kotlin/
+.idea/
+**/build/
+local.properties
+*.iml
+captures/
+
+/private-diagnostics/
+
+# Local secrets and signing material
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.jks
+*.keystore
+
+# Downloaded/decompiled research, delivery packages and private capture evidence
+/analysis/
+/delivery/
+/docs/evidence/
+/docs/handoff/
+
+# Tool dependencies, caches and scratch files
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

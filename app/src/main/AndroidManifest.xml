@@ -1,0 +1,42 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Local camera Wi-Fi only. No accounts, location APIs or background network start. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
+    <application android:networkSecurityConfig="@xml/gallery_network_security" android:label="Cameraderie" android:theme="@style/Theme.Cameraderie" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true" android:icon="@drawable/ic_cameraderie">
+        <activity android:name="com.journeyapps.barcodescanner.CaptureActivity" android:screenOrientation="portrait" tools:replace="android:screenOrientation" android:exported="false" />
+        <activity android:name=".sony.SonyQrCaptureActivity" android:screenOrientation="portrait" android:exported="false" />
+        <!-- Geometry changes must keep the active Sony transfer and folder picker owner alive. -->
+        <activity android:name=".sony.SonyGalleryActivity" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" android:exported="false" />
+        <activity android:name=".gallery.media.DocumentImportActivity" android:exported="false" />
+        <activity android:name=".gallery.media.history.ImportedImagesActivity" android:exported="false" />
+        <activity android:name=".gallery.media.edit.VideoEditorActivity" android:exported="false" />
+        <activity android:name=".gallery.media.GalleryMediaActivity" android:exported="false" />
+        <activity android:name=".telemetry.TelemetryActivity" android:exported="false" />
+        <activity android:name=".ui.NoticesActivity" android:exported="false" />
+        <activity android:name=".LibraryTransferActivity" android:exported="false" />
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <service android:name=".sony.SonyGalleryKeepAliveService" android:exported="false" android:foregroundServiceType="connectedDevice" />
+        <service android:name=".GalleryService" android:exported="false" android:foregroundServiceType="connectedDevice" />
+    </application>
+</manifest>

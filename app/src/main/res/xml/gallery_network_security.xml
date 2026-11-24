@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <!-- Action 6 local media server; no wildcard/global HTTP allowance. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.2.1</domain>
+    </domain-config>
+    <!-- OBS uses a dedicated client with DNS pinned to the user-selected private IPv4 address. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">obs.open-grip.invalid</domain>
+    </domain-config>
+</network-security-config>

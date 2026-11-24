@@ -1,0 +1,45 @@
+<resources>
+    <style name="Theme.Cameraderie" parent="Theme.Material3Expressive.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/gb_primary</item>
+        <item name="colorOnPrimary">@color/gb_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/gb_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/gb_onPrimaryContainer</item>
+        <item name="colorSecondary">@color/gb_secondary</item>
+        <item name="colorOnSecondary">@color/gb_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/gb_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/gb_onSecondaryContainer</item>
+        <item name="colorTertiary">@color/gb_tertiary</item>
+        <item name="colorOnTertiary">@color/gb_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/gb_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/gb_onTertiaryContainer</item>
+        <item name="colorSurface">@color/gb_surface</item>
+        <item name="colorOnSurface">@color/gb_onSurface</item>
+        <item name="colorSurfaceVariant">@color/gb_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/gb_onSurfaceVariant</item>
+        <item name="colorSurfaceContainer">@color/gb_surfaceContainer</item>
+        <item name="colorSurfaceContainerLow">@color/gb_surfaceContainerLow</item>
+        <item name="colorSurfaceContainerHigh">@color/gb_surfaceContainerHigh</item>
+        <item name="colorOutline">@color/gb_outline</item>
+        <item name="colorOutlineVariant">@color/gb_outlineVariant</item>
+        <item name="colorError">@color/gb_error</item>
+        <item name="colorOnError">@color/gb_onError</item>
+        <item name="colorErrorContainer">@color/gb_errorContainer</item>
+        <item name="colorOnErrorContainer">@color/gb_onErrorContainer</item>
+        <item name="android:colorBackground">@color/gb_surface</item>
+        <item name="android:statusBarColor">@color/gb_surface</item>
+        <item name="android:windowLightStatusBar">@bool/gb_light_bars</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:navigationBarColor">@color/gb_systemNavigation</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="materialButtonStyle">@style/Widget.Cameraderie.Button</item>
+    </style>
+    <style name="Widget.Cameraderie.Button" parent="Widget.Material3Expressive.Button">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+</resources>

@@ -1,0 +1,28 @@
+<resources>
+    <color name="gb_primary">#CFBDFE</color>
+    <color name="gb_onPrimary">#36275D</color>
+    <color name="gb_primaryContainer">#4D3D75</color>
+    <color name="gb_onPrimaryContainer">#E9DDFF</color>
+    <color name="gb_secondary">#CCC2DC</color>
+    <color name="gb_onSecondary">#332D41</color>
+    <color name="gb_secondaryContainer">#4A4358</color>
+    <color name="gb_onSecondaryContainer">#E8DEF8</color>
+    <color name="gb_tertiary">#EFB8C8</color>
+    <color name="gb_onTertiary">#492532</color>
+    <color name="gb_tertiaryContainer">#633B48</color>
+    <color name="gb_onTertiaryContainer">#FFD9E3</color>
+    <color name="gb_surface">#141218</color>
+    <color name="gb_systemNavigation">@color/gb_surface</color>
+    <color name="gb_onSurface">#E6E0E9</color>
+    <color name="gb_surfaceVariant">#49454F</color>
+    <color name="gb_onSurfaceVariant">#CAC4D0</color>
+    <color name="gb_surfaceContainer">#211F26</color>
+    <color name="gb_surfaceContainerLow">#1D1B20</color>
+    <color name="gb_surfaceContainerHigh">#2B2930</color>
+    <color name="gb_outline">#938F99</color>
+    <color name="gb_outlineVariant">#49454F</color>
+    <color name="gb_error">#FFB4AB</color>
+    <color name="gb_onError">#690005</color>
+    <color name="gb_errorContainer">#93000A</color>
+    <color name="gb_onErrorContainer">#FFDAD6</color>
+</resources>
