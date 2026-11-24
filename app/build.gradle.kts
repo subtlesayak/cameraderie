@@ -1,4 +1,51 @@
+import org.gradle.api.artifacts.component.ComponentIdentifier
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedComponentResult
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+
 plugins { id("com.android.application") }
+
+abstract class WriteRuntimeLibraries : DefaultTask() {
+    @get:Input
+    abstract val libraries: ListProperty<String>
+
+    @get:OutputDirectory
+    abstract val assetDirectory: DirectoryProperty
+
+    @TaskAction
+    fun writeInventory() {
+        val asset = assetDirectory.file("RESOLVED_RUNTIME_LIBRARIES.txt").get().asFile
+        asset.parentFile.mkdirs()
+        asset.writeText(libraries.get().joinToString("\n", postfix = "\n"))
+    }
+}
+
+fun resolvedLibraryCoordinates(root: ResolvedComponentResult): List<String> {
+    val visited = mutableSetOf<ComponentIdentifier>()
+    val libraries = sortedSetOf<String>()
+
+    fun visit(component: ResolvedComponentResult) {
+        val id = component.id
+        if (!visited.add(id)) return
+        if (id is ModuleComponentIdentifier) {
+            libraries.add("${id.group}:${id.module}:${id.version}")
+        }
+        component.dependencies.filterIsInstance<ResolvedDependencyResult>().forEach {
+            visit(it.selected)
+        }
+    }
+
+    visit(root)
+    return libraries.toList()
+}
+
+androidComponents.onVariants { variant ->
+    val inventory = tasks.register<WriteRuntimeLibraries>(variant.computeTaskName("write", "RuntimeLibraries")) {
+        libraries.set(variant.runtimeConfiguration.incoming.resolutionResult.rootComponent.map(::resolvedLibraryCoordinates))
+        assetDirectory.set(layout.buildDirectory.dir("generated/runtime-libraries/${variant.name}"))
+    }
+    variant.sources.assets?.addGeneratedSourceDirectory(inventory, WriteRuntimeLibraries::assetDirectory)
+}
 
 android {
     namespace = "app.cameraderie"

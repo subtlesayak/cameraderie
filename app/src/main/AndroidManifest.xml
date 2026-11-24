@@ -29,6 +29,7 @@
         <activity android:name=".gallery.media.edit.VideoEditorActivity" android:exported="false" />
         <activity android:name=".gallery.media.GalleryMediaActivity" android:exported="false" />
         <activity android:name=".telemetry.TelemetryActivity" android:exported="false" />
+        <activity android:name=".ui.AboutActivity" android:exported="false" />
         <activity android:name=".ui.NoticesActivity" android:exported="false" />
         <activity android:name=".LibraryTransferActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true">

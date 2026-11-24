@@ -18,7 +18,9 @@ import java.util.concurrent.Future
 /** Bundled public notices only. No camera/network/service or permission action. */
 class NoticesActivity:CameraderieActivity() {
     private val documents=listOf(
+        "Resolved Android runtime libraries" to RUNTIME_LIBRARIES_ASSET,
         "Apache License 2.0" to "APACHE_2_0.txt",
+        "Earlier Cameraderie MIT notice" to "CAMERADERIE_MIT_NOTICE.txt",
         "Osmosis reference license" to "OSMOSIS_REFERENCE_LICENSE.txt",
         "DJI source notice" to "DJI_SOURCE_LICENSE.txt",
         "Nordic BLE license" to "NORDIC_BLE_LICENSE.txt",
@@ -39,7 +41,7 @@ class NoticesActivity:CameraderieActivity() {
         }
         ui.add(root,MaterialToolbar(this).apply {
             title="Dependencies and licenses";setTitleTextColor(ui.tone.text)
-            setNavigationIcon(R.drawable.ic_arrow_back);navigationContentDescription="Back to Cameraderie";setNavigationOnClickListener { finish() }
+            setNavigationIcon(R.drawable.ic_arrow_back);navigationContentDescription="Back to About Cameraderie";setNavigationOnClickListener { finish() }
         })
         val info=packageManager.getPackageInfo(packageName,0)
         ui.add(root,ui.text("Cameraderie ${info.versionName.orEmpty()} · build ${info.longVersionCode}",UiKit.Type.small,secondary=true),4)

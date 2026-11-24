@@ -31,6 +31,7 @@ import app.cameraderie.gallery.net.CameraWifiAccess
 import app.cameraderie.sony.SonyGalleryActivity
 import app.cameraderie.sony.SonyImportPreferences
 import app.cameraderie.sony.SonyViewfinderActivity
+import app.cameraderie.ui.AboutActivity
 import app.cameraderie.ui.CameraderieActivity
 import app.cameraderie.ui.UiKit
 import app.cameraderie.ui.openAppPermissionSettings
@@ -160,7 +161,8 @@ class MainActivity : CameraderieActivity() {
         }
         screenshots.isChecked = prefs.allowGalleryScreenshots
         ui.add(privacy, screenshots)
-        ui.add(privacy, ui.action("Dependencies and licenses") { open(app.cameraderie.ui.NoticesActivity::class.java) }, 8)
+        val about = ui.card(body)
+        ui.add(about, ui.action("About Cameraderie") { open(AboutActivity::class.java) })
         setContentView(scroll)
         bound = bindService(Intent(this, GalleryService::class.java), connection, Context.BIND_AUTO_CREATE)
         render()
