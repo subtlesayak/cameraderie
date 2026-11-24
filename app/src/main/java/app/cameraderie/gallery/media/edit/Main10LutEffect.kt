@@ -2,6 +2,7 @@ package app.cameraderie.gallery.media.edit
 
 import android.content.Context
 import android.opengl.GLES30
+import android.util.Half
 import androidx.annotation.OptIn
 import androidx.media3.common.VideoFrameProcessingException
 import androidx.media3.common.util.GlProgram
@@ -12,6 +13,8 @@ import androidx.media3.effect.BaseGlShaderProgram
 import androidx.media3.effect.GlEffect
 import app.cameraderie.R
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /** A floating-point 3D texture and render target for the Rec.709 Main 10 export graph. */
 @OptIn(UnstableApi::class)
@@ -85,9 +88,19 @@ internal class Main10LutEffect(private val lut: CubeLut) : GlEffect {
                 GLES30.glTexParameteri(target, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE)
                 GLES30.glTexParameteri(target, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
                 GLES30.glTexParameteri(target, GLES30.GL_TEXTURE_WRAP_R, GLES30.GL_CLAMP_TO_EDGE)
-                // OpenGL expects x-fastest data. A .cube file already supplies red as that axis.
-                GLES30.glTexImage3D(target, 0, GLES30.GL_RGB16F, lut.size, lut.size, lut.size, 0,
-                    GLES30.GL_RGB, GLES30.GL_FLOAT, GlUtil.createBuffer(lut.rgb))
+                // The .cube file is x-fastest. Upload explicit four-channel half-float texels.
+                val rgba = ByteBuffer.allocateDirect(lut.rgb.size / 3 * 4 * Short.SIZE_BYTES)
+                    .order(ByteOrder.nativeOrder()).asShortBuffer()
+                val opaque = Half.toHalf(1f)
+                for (index in lut.rgb.indices step 3) {
+                    rgba.put(Half.toHalf(lut.rgb[index]))
+                    rgba.put(Half.toHalf(lut.rgb[index + 1]))
+                    rgba.put(Half.toHalf(lut.rgb[index + 2]))
+                    rgba.put(opaque)
+                }
+                rgba.position(0)
+                GLES30.glTexImage3D(target, 0, GLES30.GL_RGBA16F, lut.size, lut.size, lut.size, 0,
+                    GLES30.GL_RGBA, GLES30.GL_HALF_FLOAT, rgba)
                 GlUtil.checkGlError()
                 return id[0]
             } catch (error: GlUtil.GlException) {

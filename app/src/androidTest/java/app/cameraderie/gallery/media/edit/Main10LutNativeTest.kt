@@ -55,10 +55,11 @@ class Main10LutNativeTest {
                     if (supportsFloat) data.getFloat(index * 4) else Half.toFloat(data.getShort(index * 2))
                 }
                 // The legacy red entries would yield 128.5/255 ≈ 0.50392 at this input.
-                assertEquals(0.5021f, pixel[0], 0.0006f)
-                assertEquals(0.3999f, pixel[1], 0.0006f)
-                assertEquals(0.5f, pixel[2], 0.0006f)
-                assertEquals(1f, pixel[3], 0f)
+                val pixelDescription = "${GLES30.glGetString(GLES30.GL_RENDERER)} RGBA: ${pixel.joinToString()}"
+                assertEquals(pixelDescription, 0.5021f, pixel[0], 0.0006f)
+                assertEquals(pixelDescription, 0.3999f, pixel[1], 0.0006f)
+                assertEquals(pixelDescription, 0.5f, pixel[2], 0.0006f)
+                assertEquals(pixelDescription, 1f, pixel[3], 0f)
                 Log.i("Main10LutNativeTest", "Float framebuffer RGB: ${pixel[0]}, ${pixel[1]}, ${pixel[2]}")
             } finally {
                 shader.release()
