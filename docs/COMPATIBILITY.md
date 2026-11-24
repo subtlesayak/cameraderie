@@ -8,7 +8,7 @@ Cameraderie imports files independently of camera brand through Android’s file
 | DJI Osmo Action 6 | Bluetooth → local Wi-Fi | Idle preflight, playback handoff, SD and internal catalogues, Media3 playback of supported proxies, verified original downloads, durable queue, validated range resume and explicit restart. | Pending. Repeat incomplete catalogue and permission recovery, DNG and WAV companions, and return to shooting on the same camera. |
 | Sony α7 III (ILCE-7M3) | Local Wi-Fi | Sony media discovery, gallery browsing, and JPEG import. | QR, model discovery, catalogue, saved reconnect, and Original/2M/VGA JPEG passed on Galaxy S24 FE. [Hardware test details](#sony-α7-iii-hardware-test) |
 | Sony α7 III (ILCE-7M3) | USB PC Remote | USB viewfinder, camera identity, firmware, ISO and recording-state readout, and an idle check before closing the viewfinder for gallery setup. | Live view and idle handoff passed on Galaxy S24 FE with camera firmware 4.0. [Hardware test details](#usb-pc-remote) |
-| Sony α7 III (ILCE-7M3) | USB MTP | Sony documents MTP access to the card in slot 1. | Pending physical USB and independent comparison with a card original. |
+| Sony α7 III (ILCE-7M3) | USB MTP | Browse and import camera files from the card in slot 1. | Listed two videos and imported one verified 4K MP4 on Galaxy S24 FE. [Hardware test details](#usb-mtp-video) |
 | Sony a6400 | Local Wi-Fi | QR, manual and saved reconnect, catalogue and capture-date browsing, Original/2M/VGA JPEG choices, and verified import. | Pending. Repeat each JPEG option and record model and firmware. |
 | Sony a6400 | USB PC Remote | Candidate for the same Sony USB viewfinder. | Pending physical test. |
 | Sony a6400 | USB MTP | USB discovery, Android’s access prompt, browse and import files the camera exposes. | Pending physical USB and genuine ARW byte comparison against an independent card read. |
@@ -45,15 +45,21 @@ On 24 November 2026, Cameraderie connected a physical Sony α7 III to a Galaxy S
 
 All three copies retained the capture date. Separate SHA-256 checks of the files in the Cameraderie album matched the completed import receipts. The original JPEG's saved bytes matched the file streamed from the camera. All three copies appeared in the offline Library after disconnecting.
 
-RAW, video transfer, USB MTP, and a separate hash of the card original remain to be verified. Sony documents the α7 III’s transfer mode and USB MTP access to the card in slot 1. [Sony Wi-Fi guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001653186.html) · [Sony USB guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
+Wi-Fi video and RAW transfers remain to be verified. Sony documents the α7 III’s transfer mode and USB MTP access to the card in slot 1. [Sony Wi-Fi guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001653186.html) · [Sony USB guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
 
 ### USB PC Remote
 
 The α7 III reported firmware 4.0 in PC Remote mode. On Galaxy S24 FE running Android 17, Cameraderie received and displayed 1024 × 680 live-view frames over a direct USB data cable. It read the camera’s idle state and the ISO 640 value set on the camera. **Open camera gallery** took the idle session to gallery setup. Returning to the viewfinder and reconnecting on the same cable restored live view.
 
-An independent macOS Image Capture PTP probe also decoded four 1024 × 576 preview frames. Shutter, autofocus, recording commands, and remote ISO changes still need hardware verification.
+An independent macOS Image Capture PTP probe also decoded four 1024 × 576 preview frames. A trial ISO increase changed the camera from 640 to 800. The decrease did not produce the requested value, so the public build retains ISO readout. Shutter, autofocus, recording commands, and the gallery lock during an active recording still need hardware verification.
 
 To try the Android viewfinder, set **Ctrl w/ Smartphone** to **Off** and **USB Connection** to **PC Remote**, then attach the camera to the phone with a data cable. In Cameraderie, open **Sony USB viewfinder** and tap **Connect over USB**. [Sony USB setup](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
+
+### USB MTP video
+
+With **USB Connection** set to **MTP**, the α7 III exposed two MP4s on the Galaxy S24 FE. Cameraderie imported the newest clip through **Connect a USB camera** and recorded the original filename, capture date, and SHA-256. The 71,308,267-byte file appeared in the offline Library and matched the completed receipt when hashed separately.
+
+FFmpeg decoded all 144 video frames and the PCM audio track without errors. The clip is 5.76 seconds of H.264 video at 3840 × 2160 and 25 fps. A separate card checksum and physical RAW transfer remain pending.
 
 ## Camera acceptance checklist
 
