@@ -51,7 +51,7 @@ With proxy recording enabled, the saved Wi-Fi connection exposed a newly recorde
 
 The α7 III reported firmware 4.0 in PC Remote mode. On Galaxy S24 FE running Android 17, Cameraderie received and displayed 1024 × 680 live-view frames over a direct USB data cable. It read the camera’s idle state and the ISO 640 value set on the camera. **Open camera gallery** took the idle session to gallery setup. Returning to the viewfinder and reconnecting on the same cable restored live view.
 
-The camera confirmed autofocus in AF-S. It accepted the shutter command in M with single-shot drive and **PC+Camera** as the still-image destination. The shutter command returned successfully without a new-photo indication in the USB status.
+The camera confirmed autofocus in AF-S. It accepted the shutter command in M with single-shot drive and **PC+Camera** as the still-image destination. The shutter command returned successfully without a new-photo indication in the USB status. A read of the available card confirmed the clips and did not confirm a new still from this command.
 
 After switching the mode dial to Movie and reconnecting USB, Cameraderie received 1024 × 576 live view and confirmed recording start and stop from the camera’s USB status. The 6.24-second 4K test clip was present on the card as a 79,697,003-byte MP4, and FFmpeg decoded its H.264 video and PCM audio. The gallery and Disconnect buttons were disabled during recording. Android Back kept the viewfinder open, and the gallery button was available again after the camera returned to idle. The camera stayed idle during a recording attempt in still-photo mode and during an attempt after changing the dial without reconnecting.
 
@@ -63,7 +63,7 @@ To try the Android viewfinder, set **Ctrl w/ Smartphone** to **Off** and **USB C
 
 With **USB Connection** set to **MTP**, the α7 III exposed two MP4s on the Galaxy S24 FE. Cameraderie imported the newest clip through **Connect a USB camera** and recorded the original filename, capture date, and SHA-256. The 71,308,267-byte file appeared in the offline Library and matched the completed receipt when hashed separately.
 
-FFmpeg decoded all 144 video frames and the PCM audio track without errors. The clip is 5.76 seconds of H.264 video at 3840 × 2160 and 25 fps. The card’s copy was hashed independently after mounting the camera as USB Mass Storage on the Mac. Its SHA-256 matched the Cameraderie import. A genuine 68,730,880-byte ARW from the other card imported through Android’s file picker. Its saved SHA-256 and receipt matched a separate read of the camera card. Direct USB MTP RAW transfer remains pending. After the PC Remote recording test, a separate MTP connection opened with an empty catalogue, which persisted after refresh and an app reconnect.
+FFmpeg decoded all 144 video frames and the PCM audio track without errors. The clip is 5.76 seconds of H.264 video at 3840 × 2160 and 25 fps. The card’s copy was hashed independently after mounting the camera as USB Mass Storage on the Mac. Its SHA-256 matched the Cameraderie import. A genuine 68,730,880-byte ARW from camera storage imported through Android’s file picker. Its saved SHA-256 and receipt matched a separate read of the camera card. Direct USB MTP RAW transfer remains pending. After the PC Remote recording test, a separate MTP connection opened with an empty catalogue, which persisted after refresh and an app reconnect.
 
 ## Camera acceptance checklist
 
