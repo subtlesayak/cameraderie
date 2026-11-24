@@ -85,16 +85,18 @@ internal class Main10LutEffect(private val lut: CubeLut) : GlEffect {
                 GLES30.glTexParameteri(target, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE)
                 GLES30.glTexParameteri(target, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
                 GLES30.glTexParameteri(target, GLES30.GL_TEXTURE_WRAP_R, GLES30.GL_CLAMP_TO_EDGE)
-                // The .cube file is x-fastest. Keep four source components explicit,
-                // then let GLES store them as half floats in the texture.
-                val rgba = FloatArray(lut.rgb.size / 3 * 4)
-                for (texel in 0 until rgba.size / 4) {
-                    val offset = texel * 4
-                    lut.rgb.copyInto(rgba, offset, texel * 3, texel * 3 + 3)
-                    rgba[offset + 3] = 1f
+                val size = lut.size
+                GLES30.glTexStorage3D(target, 1, GLES30.GL_RGB16F, size, size, size)
+                // Each blue slice holds a tightly packed, x-fastest RGB plane. Upload
+                // each slice so GLES implementations receive its bytes and depth offset.
+                val componentsPerSlice = size * size * 3
+                val source = GlUtil.createBuffer(lut.rgb)
+                for (slice in 0 until size) {
+                    source.position(slice * componentsPerSlice)
+                    source.limit((slice + 1) * componentsPerSlice)
+                    GLES30.glTexSubImage3D(target, 0, 0, 0, slice, size, size, 1,
+                        GLES30.GL_RGB, GLES30.GL_FLOAT, source)
                 }
-                GLES30.glTexImage3D(target, 0, GLES30.GL_RGBA16F, lut.size, lut.size, lut.size, 0,
-                    GLES30.GL_RGBA, GLES30.GL_FLOAT, GlUtil.createBuffer(rgba))
                 GlUtil.checkGlError()
                 return id[0]
             } catch (error: GlUtil.GlException) {
