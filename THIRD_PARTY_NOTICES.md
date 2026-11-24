@@ -1,6 +1,6 @@
 # Third-party notices
 
-The project MIT license covers Cameraderie contributors’ code. Third-party materials retain their upstream terms.
+Cameraderie project code is available under the [Apache License 2.0](LICENSE). Earlier MIT-licensed revisions retain their original terms. Third-party materials retain their upstream terms. [Earlier MIT license notice](licenses/CAMERADERIE_MIT_NOTICE.txt)
 
 - **AndroidX**, including Media3, RecyclerView, and ExifInterface, and **Material Components for Android** use Apache License 2.0. Media3’s Sonic processor includes upstream Sonic code by Bill Cox under Apache License 2.0. [AndroidX source](https://android.googlesource.com/platform/frameworks/support/) · [Media3](https://github.com/androidx/media) · [Material Components](https://github.com/material-components/material-components-android)
 - **Nordic Android BLE Library** uses BSD 3-Clause. [Nordic BLE library](https://github.com/NordicSemiconductor/Android-BLE-Library)

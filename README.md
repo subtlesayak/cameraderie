@@ -46,4 +46,4 @@ Any camera that implements a protocol supported by Cameraderie should work with 
 - [Building, testing, and signing](docs/BUILD.md)
 - [Contributing camera adapters](docs/CONTRIBUTING.md)
 
-Cameraderie is available under the [MIT License](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for upstream terms.
+Cameraderie is available under the [Apache License 2.0](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for upstream terms.
