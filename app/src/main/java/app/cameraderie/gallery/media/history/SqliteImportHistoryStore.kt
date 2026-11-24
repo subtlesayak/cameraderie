@@ -14,17 +14,21 @@ import java.io.Closeable
 class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):ImportHistoryStore,Closeable {
     private val helper = object : SQLiteOpenHelper(context.applicationContext, name, null, DATABASE_VERSION) {
         override fun onCreate(db: SQLiteDatabase) {
-            db.execSQL("CREATE TABLE imports (id TEXT PRIMARY KEY NOT NULL, uri TEXT UNIQUE NOT NULL, stage TEXT NOT NULL, started_at INTEGER, draft TEXT NOT NULL, receipt TEXT, completed_at INTEGER, completion_kind TEXT)")
+            db.execSQL("CREATE TABLE imports (id TEXT PRIMARY KEY NOT NULL, uri TEXT UNIQUE NOT NULL, stage TEXT NOT NULL, started_at INTEGER, draft TEXT NOT NULL, receipt TEXT, completed_at INTEGER, completion_kind TEXT, project_export_id TEXT)")
             createHistoryIndexes(db)
+            createProjectExportIndex(db)
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            check(oldVersion == 1 && newVersion == 2) {
+            check(oldVersion in 1..2 && newVersion == DATABASE_VERSION) {
                 "Unsupported import-history migration from $oldVersion to $newVersion"
             }
-            // Replace indexes inside SQLiteOpenHelper's upgrade transaction. The journal rows stay in place.
-            db.execSQL("DROP INDEX imports_by_stage")
-            createHistoryIndexes(db)
+            if (oldVersion == 1) {
+                db.execSQL("DROP INDEX imports_by_stage")
+                createHistoryIndexes(db)
+            }
+            db.execSQL("ALTER TABLE imports ADD COLUMN project_export_id TEXT")
+            createProjectExportIndex(db)
         }
     }
 
@@ -32,6 +36,12 @@ class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):
         db.execSQL("CREATE INDEX imports_by_stage_and_id ON imports(stage, id)")
         db.execSQL("CREATE INDEX imports_by_completion ON imports(stage, COALESCE(completed_at, started_at, 0) DESC, id DESC)")
     }
+    private fun createProjectExportIndex(db: SQLiteDatabase) {
+        db.execSQL("""CREATE INDEX imports_by_project_export ON imports(
+            project_export_id, stage, COALESCE(completed_at, started_at, 0) DESC, id DESC)
+            WHERE project_export_id IS NOT NULL""")
+    }
+
     private fun <T> transaction(block:(SQLiteDatabase)->T):T {
         val db=helper.writableDatabase;db.beginTransaction()
         try { val result=block(db);db.setTransactionSuccessful();return result } finally { db.endTransaction() }
@@ -111,6 +121,11 @@ class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):
         val args=mutableListOf(ImportHistoryStage.COMPLETE.name).apply { if(afterId!=null)add(afterId) }
         return helper.readableDatabase.query("imports",null,selection,args.toTypedArray(),null,null,"id ASC",limit.toString()).use(::rows)
     }
+    override fun projectExports(projectId: String): List<ImportHistoryEntry> =
+        helper.readableDatabase.query("imports", null,
+            "project_export_id=? AND stage IN ('STAGING','VERIFIED','COMPLETE')", arrayOf(projectId),
+            null, null, "COALESCE(completed_at,started_at,0) DESC, id DESC").use(::rows)
+
     override fun countCompleted()=DatabaseUtils.longForQuery(helper.readableDatabase,"SELECT count(*) FROM imports WHERE stage=?",arrayOf(ImportHistoryStage.COMPLETE.name)).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
     override fun containsUri(uri:String)=helper.readableDatabase.query("imports",arrayOf("id"),"uri=?",arrayOf(LocalMediaIdentity.key(uri)),null,null,null,"1").use { it.moveToFirst() }
     override fun legacy(draft:ImportHistoryDraft,receipt:ImportHistoryReceipt?,rowAddedAt:Long?) {
@@ -136,6 +151,7 @@ class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):
     }
     private fun values(d:ImportHistoryDraft,stage:ImportHistoryStage,r:ImportHistoryReceipt?,completed:Long?,kind:ImportCompletionKind?)=ContentValues().apply {
         put("id",d.id);put("uri",LocalMediaIdentity.key(d.uri));put("stage",stage.name);put("draft",encode(d).toString())
+        put("project_export_id", d.projectExport?.projectId)
         if(d.startedAt==null)putNull("started_at") else put("started_at",d.startedAt)
         if(r==null)putNull("receipt") else put("receipt",encode(r).toString())
         if(completed==null)putNull("completed_at") else put("completed_at",completed)
@@ -144,6 +160,11 @@ class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):
     internal fun encode(d:ImportHistoryDraft)=JSONObject().apply {
         put("v",1);put("id",d.id);put("uri",d.uri);put("name",d.displayName);put("bytes",d.expectedBytes);put("provenance",d.provenance.name)
         putOpt("videoSource",d.videoSource);putOpt("framePositionMs",d.framePositionMs)
+        d.projectExport?.let { origin ->
+            put("projectExport", JSONObject()
+                .put("project", origin.projectId).putOpt("shoot", origin.shootId)
+                .put("sourceId", origin.sourceImportId).put("sourceSha", origin.sourceSha256))
+        }
         putOpt("trimStartUs",d.trimStartUs);putOpt("trimEndUs",d.trimEndUs)
         putOpt("companionFor",d.companionFor);putOpt("companionRef",d.companionParentReference)
         putOpt("folderTree",d.folderTree);putOpt("started",d.startedAt);putOpt("quality",d.requestedQuality);putOpt("model",d.cameraModel);putOpt("scope",d.sourceScope);putOpt("scopeKind",d.sourceScopeKind);putOpt("sourceRef",d.sourceItemReference);putOpt("reduced",d.offeredReduced)
@@ -154,7 +175,11 @@ class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):
             j.stringOrNull("quality"),j.stringOrNull("model"),j.stringOrNull("scope"),j.stringOrNull("scopeKind"),j.stringOrNull("sourceRef"),if(j.has("reduced") && !j.isNull("reduced")) j.getBoolean("reduced") else null,j.stringOrNull("folderTree"),
             j.stringOrNull("companionFor"),j.stringOrNull("companionRef"),
             j.stringOrNull("videoSource") ?: j.stringOrNull("frameSource"),j.longOrNull("framePositionMs"),
-            j.longOrNull("trimStartUs"),j.longOrNull("trimEndUs"))
+            j.longOrNull("trimStartUs"),j.longOrNull("trimEndUs"),
+            j.optJSONObject("projectExport")?.let { origin ->
+                ProjectExportOrigin(origin.getString("project"), origin.stringOrNull("shoot"),
+                    origin.getString("sourceId"), origin.getString("sourceSha"))
+            })
     }
     internal fun encode(r:ImportHistoryReceipt)=JSONObject().apply {
         put("v",1);put("bytes",r.bytes);putOpt("sha",r.sha256);put("mime",r.mime);put("sourceMatched",r.sourceHashMatched)
@@ -173,6 +198,6 @@ class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):
     override fun close()=helper.close()
 
     private companion object {
-        const val DATABASE_VERSION = 2
+        const val DATABASE_VERSION = 3
     }
 }

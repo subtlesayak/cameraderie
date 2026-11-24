@@ -27,6 +27,15 @@ class ImportHistoryRepository(
         } while(true)
         return records.sortedWith(compareByDescending<ImportHistoryEntry> { it.completedAt ?: it.draft.startedAt ?: 0L }.thenByDescending { it.draft.id })
     }
+    fun completedProjectExports(projectId: String): List<ImportHistoryEntry> {
+        var exports = store.projectExports(projectId)
+        if (exports.any { it.stage == ImportHistoryStage.STAGING || it.stage == ImportHistoryStage.VERIFIED }) {
+            reconcile()
+            exports = store.projectExports(projectId)
+        }
+        return exports.filter { it.stage == ImportHistoryStage.COMPLETE }
+    }
+
     fun reconcile(cancelled:()->Boolean={false}):Recovery {
         var recovered=0;var interrupted=0;var unresolved=0;var legacy=0
         val ran=gate.tryRecover {

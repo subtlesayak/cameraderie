@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import app.cameraderie.gallery.media.history.ImportHistoryEntry
 import app.cameraderie.gallery.media.history.ImportHistoryStage
+import app.cameraderie.gallery.media.history.ProjectExportOrigin
 import java.io.Closeable
 import java.util.UUID
 
@@ -146,6 +147,18 @@ internal class ProjectStore(context: Context, name: String = "projects.db") : Cl
             WHERE m.project_id=? ORDER BY m.rowid""",
         arrayOf(id),
     ).use { readRows(it) { ProjectMedia(getString(0), getString(1), getString(2), getString(3)) } }
+
+    fun exportOrigin(projectId: String, source: ImportHistoryEntry): ProjectExportOrigin? {
+        val media = ProjectMedia.from(source) ?: return null
+        return helper.readableDatabase.rawQuery(
+            """SELECT s.shoot_id FROM project_media m
+                LEFT JOIN shoot_media s ON s.project_id=m.project_id AND s.import_id=m.import_id
+                WHERE m.project_id=? AND m.import_id=? AND m.sha256=?""",
+            arrayOf(projectId, media.importId, media.sha256),
+        ).use {
+            if (it.moveToFirst()) ProjectExportOrigin(projectId, it.getString(0), media.importId, media.sha256) else null
+        }
+    }
 
     fun addMedia(id: String, entries: List<ImportHistoryEntry>, shootId: String? = null): Int {
         val db = helper.writableDatabase

@@ -29,7 +29,7 @@ Choose the adapter in Cameraderie and follow its pairing or connection prompt. T
 1. Open **Projects** and create a project. Use **New shoot** for a day, location, or sequence. Project and shoot notes are saved on the phone.
 2. Use **Add from Library** to choose verified imports. Add files from the project view to keep them unassigned, or add them inside a shoot to assign them there.
 3. Tap a project file and choose **Move to shoot** to change its assignment. Use the shoot’s menu to edit its notes or move it earlier or later in the project.
-4. Tap a file to open it or edit a supported original video. Project and shoot assignments preserve the original Library files and their receipts.
+4. Tap a file to open it or edit a supported original video. An MP4 exported from a project appears under **Exports** in the source shoot and in Library. Tap the export to open it or return to the verified original. Pausing and resuming preserves the project association.
 
 The [Himalayan Diaries example](WORKFLOW.md#himalayan-diaries) shows how to organize media from several cameras in one project.
 

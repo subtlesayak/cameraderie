@@ -610,7 +610,7 @@ class VideoEditorActivity : CameraderieActivity() {
             val trim = TrimRange(start, end)
             val frame = crop.frame(video.width, video.height)
             setState(State.READY, "")
-            Media3VideoEdit(trim, frame, lut, format)
+            Media3VideoEdit(trim, frame, lut, format, intent.getStringExtra(PROJECT_ID))
         } catch (e: IllegalArgumentException) {
             setState(State.READY, e.message ?: "Check the trim and crop values.")
             null
@@ -867,6 +867,7 @@ class VideoEditorActivity : CameraderieActivity() {
     companion object {
         private const val TAG = "CameraderieVideoEditor"
         private const val IMPORT_ID = "import-id"
+        private const val PROJECT_ID = "edit-project-id"
         private const val SLIDER_VALUES = "slider-values"
         private const val CROP_BOX = "crop-box"
         private const val CROP_ACTIVE = "crop-active"
@@ -875,7 +876,7 @@ class VideoEditorActivity : CameraderieActivity() {
         private const val LUT_FOLDER_URI = "lut-folder-uri"
         private const val EXPORT_ACTIVE = "export-active"
 
-        internal fun intent(context: Context, id: String) =
-            Intent(context, VideoEditorActivity::class.java).putExtra(IMPORT_ID, id)
+        internal fun intent(context: Context, id: String, projectId: String? = null) =
+            Intent(context, VideoEditorActivity::class.java).putExtra(IMPORT_ID, id).putExtra(PROJECT_ID, projectId)
     }
 }

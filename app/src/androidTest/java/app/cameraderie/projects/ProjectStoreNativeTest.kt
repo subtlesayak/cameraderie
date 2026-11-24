@@ -2,11 +2,13 @@ package app.cameraderie.projects
 
 import android.database.sqlite.SQLiteDatabase
 import app.cameraderie.NativeChecks
+import app.cameraderie.gallery.media.history.ImportCompletionKind
 import app.cameraderie.gallery.media.history.ImportHistoryDraft
 import app.cameraderie.gallery.media.history.ImportHistoryEntry
 import app.cameraderie.gallery.media.history.ImportHistoryReceipt
 import app.cameraderie.gallery.media.history.ImportHistoryStage
 import app.cameraderie.gallery.media.history.ImportProvenance
+import app.cameraderie.gallery.media.history.SqliteImportHistoryStore
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
@@ -117,6 +119,51 @@ class ProjectStoreNativeTest {
                 assertEquals(listOf(original.copy(shootId = shoot)), upgraded.media("existing"))
             }
         } finally { context.deleteDatabase(db) }
+    }
+
+    @Test fun publishedExportRetainsItsShootAndSourceAcrossReopen() {
+        val context = NativeChecks.instance.targetContext
+        val projects = "project-export-${UUID.randomUUID()}.db"
+        val history = "project-history-${UUID.randomUUID()}.db"
+        try {
+            val source = fixture(1, "Original.MP4", "video/mp4", 'a', "Osmo Action 6")
+            val output = fixture(2, "Edit.MP4", "video/mp4", 'b', "Osmo Action 6")
+            ProjectStore(context, projects).use { projectStore ->
+                val project = projectStore.create("Malaysian Diaries", "")
+                val shoot = projectStore.createShoot(project, "Day 2 · Mountain pass", "")
+                val other = projectStore.createShoot(project, "Day 1 · Departure", "")
+                projectStore.addMedia(project, listOf(source), shoot)
+                val wrongReceipt = source.copy(receipt = checkNotNull(source.receipt).copy(sha256 = "c".repeat(64)))
+                assertNull(projectStore.exportOrigin(project, wrongReceipt))
+                val origin = checkNotNull(projectStore.exportOrigin(project, source))
+                val exported = output.draft.copy(provenance = ImportProvenance.EDITED_FROM_ORIGINAL,
+                    videoSource = source.draft.displayName, trimStartUs = 1_000, trimEndUs = 500_000, projectExport = origin)
+                SqliteImportHistoryStore(context, history).use { journal ->
+                    journal.begin(source.draft)
+                    journal.verified(source.draft.id, checkNotNull(source.receipt))
+                    journal.complete(source.draft.id, 2, ImportCompletionKind.OBSERVED_PUBLICATION)
+                    journal.begin(exported)
+                    journal.verified(exported.id, checkNotNull(output.receipt))
+                    assertEquals(ImportHistoryStage.VERIFIED, journal.projectExports(project).single().stage)
+                }
+                projectStore.moveMedia(project, source.draft.id, other)
+                SqliteImportHistoryStore(context, history).use { reopened ->
+                    reopened.complete(exported.id, 3, ImportCompletionKind.RECOVERED_VERIFIED)
+                    val saved = reopened.projectExports(project).single()
+                    assertEquals(ImportHistoryStage.COMPLETE, saved.stage)
+                    assertEquals(origin, saved.draft.projectExport)
+                    assertEquals(shoot, saved.draft.projectExport?.shootId)
+                    assertEquals(source.draft.id, saved.draft.projectExport?.sourceImportId)
+                    assertEquals(source.receipt?.sha256, saved.draft.projectExport?.sourceSha256)
+                    assertEquals(source.receipt, reopened.find(source.draft.id)?.receipt)
+                    assertEquals(output.receipt, saved.receipt)
+                    assertEquals(emptyList<ImportHistoryEntry>(), reopened.projectExports("another-project"))
+                }
+            }
+        } finally {
+            context.deleteDatabase(projects)
+            context.deleteDatabase(history)
+        }
     }
 
     private fun fixture(number: Int, name: String, mime: String, hash: Char?, camera: String?): ImportHistoryEntry {

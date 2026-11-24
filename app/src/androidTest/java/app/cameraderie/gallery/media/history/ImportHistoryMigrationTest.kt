@@ -11,7 +11,12 @@ import org.junit.Test
 import java.util.UUID
 
 class ImportHistoryMigrationTest {
-    @Test fun upgradesAnExistingJournalWithReceiptsAndPendingImports() {
+    @Test fun upgradesExistingJournalsWithReceiptsAndPendingImports() {
+        verifyUpgrade(1)
+        verifyUpgrade(2)
+    }
+
+    private fun verifyUpgrade(version: Int) {
         val context = NativeChecks.instance.targetContext
         val name = "import-migration-${UUID.randomUUID()}.db"
         val hash = "a".repeat(64)
@@ -22,10 +27,15 @@ class ImportHistoryMigrationTest {
         val originalRows: List<List<String?>>
         try {
             context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { db ->
-                // The released v1 schema and serialized keys are fixed test fixtures.
+                // Fixtures retain the released table and JSON format for both versions.
                 db.execSQL("CREATE TABLE imports (id TEXT PRIMARY KEY NOT NULL, uri TEXT UNIQUE NOT NULL, stage TEXT NOT NULL, started_at INTEGER, draft TEXT NOT NULL, receipt TEXT, completed_at INTEGER, completion_kind TEXT)")
-                db.execSQL("CREATE INDEX imports_by_stage ON imports(stage,completed_at)")
-                db.version = 1
+                if (version == 1) {
+                    db.execSQL("CREATE INDEX imports_by_stage ON imports(stage,completed_at)")
+                } else {
+                    db.execSQL("CREATE INDEX imports_by_stage_and_id ON imports(stage, id)")
+                    db.execSQL("CREATE INDEX imports_by_completion ON imports(stage, COALESCE(completed_at, started_at, 0) DESC, id DESC)")
+                }
+                db.version = version
                 val receipt = JSONObject()
                     .put("v", 1).put("bytes", 24).put("sha", hash).put("mime", "video/mp4")
                     .put("sourceMatched", true).put("captureDate", "2026-11-24")
@@ -54,11 +64,15 @@ class ImportHistoryMigrationTest {
             }
 
             context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { db ->
-                assertEquals(2, db.version)
+                assertEquals(3, db.version)
                 assertEquals(originalRows, snapshot(db))
                 val indexes = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='imports'", null)
                     .use { cursor -> buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) } }
-                assertTrue(indexes.containsAll(setOf("imports_by_stage_and_id", "imports_by_completion")))
+                assertTrue(indexes.containsAll(setOf("imports_by_stage_and_id", "imports_by_completion", "imports_by_project_export")))
+                db.rawQuery("SELECT COUNT(*) FROM imports WHERE project_export_id IS NOT NULL", null).use { cursor ->
+                    assertTrue(cursor.moveToFirst())
+                    assertEquals(0, cursor.getInt(0))
+                }
             }
 
             SqliteImportHistoryStore(context, name).use { store ->
@@ -87,6 +101,7 @@ class ImportHistoryMigrationTest {
             arrayOf(id, uriKey, stage, started, draft.toString(), receipt?.toString(), completed, kind))
     }
 
-    private fun snapshot(db: SQLiteDatabase): List<List<String?>> = db.rawQuery("SELECT * FROM imports ORDER BY id", null)
+    private fun snapshot(db: SQLiteDatabase): List<List<String?>> = db.rawQuery(
+        "SELECT id, uri, stage, started_at, draft, receipt, completed_at, completion_kind FROM imports ORDER BY id", null)
         .use { cursor -> buildList { while (cursor.moveToNext()) add(List(cursor.columnCount, cursor::getString)) } }
 }

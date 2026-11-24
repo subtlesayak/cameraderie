@@ -17,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import app.cameraderie.R
 import app.cameraderie.gallery.media.edit.VerifiedVideo
 import app.cameraderie.gallery.media.edit.VideoEditorActivity
+import app.cameraderie.gallery.media.history.ImportHistoryEntry
 import app.cameraderie.gallery.media.history.ImportHistoryRepository
 import app.cameraderie.gallery.media.history.ImportedImagesActivity
 import app.cameraderie.sony.SonyImportPreferences
@@ -91,21 +92,28 @@ class ProjectsActivity : CameraderieActivity() {
         load()
     }
 
+    private data class ProjectDetails(
+        val project: Project?, val shoots: List<ProjectShoot>, val media: List<ProjectMedia>,
+        val exports: List<ImportHistoryEntry>,
+    )
+
     private fun load() {
         val id = projectId
         if (id == null) {
             work(store::projects, ::showProjects)
             return
         }
-        work({ Triple(store.project(id), store.shoots(id), store.media(id)) }) { (project, shoots, media) ->
+        work({ ProjectDetails(store.project(id), store.shoots(id), store.media(id), history.completedProjectExports(id)) }) {
+            (project, shoots, media, exports) ->
             val currentShoot = shoots.firstOrNull { it.id == shootId }
             when {
                 project == null || (shootId != null && currentShoot == null) -> {
                     toast("Project or shoot unavailable.")
                     finish()
                 }
-                currentShoot == null -> showProject(project, shoots, media)
-                else -> showShoot(project, currentShoot, shoots, media.filter { it.shootId == currentShoot.id })
+                currentShoot == null -> showProject(project, shoots, media, exports)
+                else -> showShoot(project, currentShoot, shoots, media.filter { it.shootId == currentShoot.id },
+                    exports.filter { it.draft.projectExport?.shootId == currentShoot.id })
             }
         }
     }
@@ -119,7 +127,8 @@ class ProjectsActivity : CameraderieActivity() {
         })
     }
 
-    private fun showProject(project: Project, shoots: List<ProjectShoot>, media: List<ProjectMedia>) {
+    private fun showProject(project: Project, shoots: List<ProjectShoot>, media: List<ProjectMedia>,
+                            exports: List<ImportHistoryEntry>) {
         toolbar.title = project.name
         header.removeAllViews()
         ui.row(header, ui.action("New shoot", primary = true) { editShoot(project, null) },
@@ -143,10 +152,12 @@ class ProjectsActivity : CameraderieActivity() {
                     }
                 })
             }
+            addAll(exportRows(exports, names))
         })
     }
 
-    private fun showShoot(project: Project, shoot: ProjectShoot, shoots: List<ProjectShoot>, media: List<ProjectMedia>) {
+    private fun showShoot(project: Project, shoot: ProjectShoot, shoots: List<ProjectShoot>, media: List<ProjectMedia>,
+                          exports: List<ImportHistoryEntry>) {
         toolbar.title = shoot.name
         toolbar.subtitle = project.name
         toolbar.menu.clear()
@@ -164,7 +175,39 @@ class ProjectsActivity : CameraderieActivity() {
         ui.add(header, ui.action("Add from Library", primary = true, onClick = ::pickMedia))
         showNotes(shoot.notes)
         showStatus(media.size)
-        setRows(media.map { item -> Row(item.name) { showMediaActions(project.id, item, shoots) } })
+        setRows(media.map { item -> Row(item.name) { showMediaActions(project.id, item, shoots) } } + exportRows(exports))
+    }
+
+    private fun exportRows(exports: List<ImportHistoryEntry>, shootNames: Map<String, String>? = null): List<Row> {
+        if (exports.isEmpty()) return emptyList()
+        return listOf(Row("Exports")) + exports.map { entry ->
+            val origin = checkNotNull(entry.draft.projectExport)
+            val label = buildList {
+                add(entry.receipt?.displayName ?: entry.draft.displayName)
+                shootNames?.let { add(it[origin.shootId] ?: "Unassigned") }
+                add("Source · ${entry.draft.videoSource}")
+            }.joinToString("\n")
+            Row(label) { showExport(entry) }
+        }
+    }
+
+    private fun showExport(entry: ImportHistoryEntry) {
+        val origin = checkNotNull(entry.draft.projectExport)
+        work({
+            history.store.find(origin.sourceImportId)?.takeIf {
+                it.receipt?.sha256 == origin.sourceSha256 && VerifiedVideo.supports(it)
+            }
+        }) { source ->
+            val builder = MaterialAlertDialogBuilder(this)
+                .setTitle(entry.receipt?.displayName ?: entry.draft.displayName)
+                .setMessage("Source · ${entry.draft.videoSource}")
+                .setNegativeButton("Close", null)
+                .setPositiveButton("Open export") { _, _ -> openFile(entry.draft.uri) }
+            if (source != null) builder.setNeutralButton("Edit original") { _, _ ->
+                startActivity(VideoEditorActivity.intent(this, origin.sourceImportId, origin.projectId))
+            }
+            SonyScreenWindows.showMedia(builder.create(), this)
+        }
     }
 
     private fun showNotes(notes: String) {
@@ -219,10 +262,8 @@ class ProjectsActivity : CameraderieActivity() {
                     work({ store.removeMedia(id, media.importId) }) { message = "Removed from project."; load() }
                 }
             if (entry != null) builder.setPositiveButton(if (edit) "Edit video" else "Open") { _, _ ->
-                if (edit) startActivity(VideoEditorActivity.intent(this, media.importId))
-                else work({ history.local.open(entry.draft.uri) }) { intent ->
-                    runCatching { startActivity(intent) }.onFailure { toast("No compatible app can open this file.") }
-                }
+                if (edit) startActivity(VideoEditorActivity.intent(this, media.importId, id))
+                else openFile(entry.draft.uri)
             }
             val dialog = builder.create()
             val items = ui.column().apply { setPadding(ui.dp(20), ui.dp(8), ui.dp(20), ui.dp(8)) }
@@ -233,6 +274,12 @@ class ProjectsActivity : CameraderieActivity() {
             })
             if (items.childCount > 0) dialog.setView(items)
             SonyScreenWindows.showMedia(dialog, this)
+        }
+    }
+
+    private fun openFile(uri: String) {
+        work({ history.local.open(uri) }) { intent ->
+            runCatching { startActivity(intent) }.onFailure { toast("No compatible app can open this file.") }
         }
     }
 

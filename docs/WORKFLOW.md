@@ -32,4 +32,6 @@ On an Android 12 emulator, Cameraderie created Malaysian Diaries and both shoots
 
 A follow-up used a saved Sony a6400 JPEG identified by EXIF and an Action 6 MP4 from the wireless test. Cameraderie imported both through the file picker and assigned the JPEG to Day 1 and the MP4 to Day 2. The published APK updated in place and reopened the project offline. The saved copies matched the source SHA-256 values and their Library receipts.
 
+For the linked-export check, a synthetic video was trimmed and exported as a separate H.264 MP4 from **Day 2 · Mountain pass**. After an offline process restart, the shoot listed the export and its original. Independent readback decoded the export, matched its SHA-256 receipt, and confirmed the source file and original receipt were unchanged.
+
 See the [user guide](USAGE.md) for workflows available in the app and the [compatibility matrix](COMPATIBILITY.md) for connection and hardware test results.

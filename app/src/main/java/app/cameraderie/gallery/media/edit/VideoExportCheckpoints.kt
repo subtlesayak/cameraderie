@@ -101,7 +101,7 @@ internal class VideoExportCheckpoints(privateDir: File, legacyCacheDir: File, pr
 
     private fun DataOutputStream.writeEdit(edit: Media3VideoEdit) {
         // Change the schema when the export pipeline changes existing edit semantics.
-        writeInt(1)
+        writeInt(if (edit.projectId == null) 1 else 2)
         writeLong(edit.trim.startMs)
         writeLong(edit.trim.endMs)
         writeUTF(edit.format.name)
@@ -116,10 +116,12 @@ internal class VideoExportCheckpoints(privateDir: File, legacyCacheDir: File, pr
         }
         writeInt(edit.lut?.size ?: 0)
         edit.lut?.rgb?.forEach(::writeFloat)
+        edit.projectId?.let(::writeUTF)
     }
 
     private fun readEdit(file: File): Media3VideoEdit = DataInputStream(recipe(file).inputStream().buffered()).use {
-        require(it.readInt() == 1)
+        val version = it.readInt()
+        require(version in 1..2)
         val trim = TrimRange(it.readLong(), it.readLong())
         require(trim.endMs <= source.durationMs)
         val format = VideoOutput.valueOf(it.readUTF())
@@ -131,7 +133,8 @@ internal class VideoExportCheckpoints(privateDir: File, legacyCacheDir: File, pr
         } else null
         val size = it.readInt()
         val lut = if (size == 0) null else CubeLut.fromCheckpoint(size, it::readFloat)
-        val edit = Media3VideoEdit(trim, crop, lut, format)
+        val projectId = if (version == 2) it.readUTF().also { id -> require(id.isNotBlank()) } else null
+        val edit = Media3VideoEdit(trim, crop, lut, format, projectId)
         require(it.read() == -1 && file.name.startsWith("$sourceKey.${editKey(edit)}."))
         edit
     }

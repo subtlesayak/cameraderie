@@ -5,6 +5,15 @@ enum class ImportHistoryStage { STAGING, VERIFIED, COMPLETE, INTERRUPTED }
 enum class ImportProvenance { OFFERED_CAMERA_BYTES, PHONE_JPEG_REDUCTION, LEGACY_UNKNOWN, DOCUMENT_BYTES, FRAME_FROM_ORIGINAL, TRIM_FROM_ORIGINAL, EDITED_FROM_ORIGINAL }
 enum class ImportCompletionKind { OBSERVED_PUBLICATION, RECOVERED_VERIFIED, LEGACY_ROW_ADDED }
 
+data class ProjectExportOrigin(
+    val projectId: String, val shootId: String?, val sourceImportId: String, val sourceSha256: String,
+) {
+    init {
+        require(projectId.isNotBlank() && (shootId == null || shootId.isNotBlank()) && sourceImportId.isNotBlank())
+        require(Regex("[0-9a-f]{64}").matches(sourceSha256))
+    }
+}
+
 data class ImportHistoryDraft(
     val id:String,val uri:String,val displayName:String,val expectedBytes:Long,
     val startedAt:Long?,val provenance:ImportProvenance,
@@ -13,7 +22,8 @@ data class ImportHistoryDraft(
     val offeredReduced:Boolean?=null, val folderTree:String?=null,
     val companionFor:String?=null, val companionParentReference:String?=null,
     val videoSource:String?=null,val framePositionMs:Long?=null,
-    val trimStartUs:Long?=null,val trimEndUs:Long?=null
+    val trimStartUs:Long?=null,val trimEndUs:Long?=null,
+    val projectExport: ProjectExportOrigin? = null,
 ) {
     init {
         require(id.isNotBlank() && displayName.isNotBlank());LocalMediaIdentity.key(uri)
@@ -21,6 +31,7 @@ data class ImportHistoryDraft(
         if (LocalMediaIdentity.isFolderReservation(uri)) require(folderTree != null && uri == LocalMediaIdentity.folderReservation(id))
         if (LocalMediaIdentity.isFolderDocument(uri)) require(folderTree != null && LocalMediaIdentity.inFolder(uri,folderTree))
         require(expectedBytes>0 && (startedAt==null || startedAt>=0))
+        if (projectExport != null) require(provenance == ImportProvenance.EDITED_FROM_ORIGINAL && id != projectExport.sourceImportId)
         if(provenance==ImportProvenance.LEGACY_UNKNOWN) require(requestedQuality==null)
         if(provenance==ImportProvenance.FRAME_FROM_ORIGINAL) require(!videoSource.isNullOrBlank() && framePositionMs!=null && framePositionMs>=0)
         if(provenance==ImportProvenance.TRIM_FROM_ORIGINAL || provenance==ImportProvenance.EDITED_FROM_ORIGINAL) require(!videoSource.isNullOrBlank() && trimStartUs!=null && trimEndUs!=null && trimStartUs>=0 && trimEndUs>trimStartUs)
@@ -57,6 +68,7 @@ interface ImportHistoryStore {
     fun completed(offset:Int=0,limit:Int=100):List<ImportHistoryEntry>
     fun completedAfterId(afterId:String?=null,limit:Int=100):List<ImportHistoryEntry>
     fun find(id:String):ImportHistoryEntry?
+    fun projectExports(projectId: String): List<ImportHistoryEntry> = emptyList()
     fun countCompleted():Int
     fun containsUri(uri:String):Boolean
     /** Only previously unknown, app-owned published rows; never overwrites journal state. */

@@ -64,6 +64,13 @@ class VideoExportCheckpointsTest {
         fixture.assertPrepared(fixture.edit)
     }
 
+    @Test fun pausedProjectExportKeepsItsOriginWhenTheEditorReopens() {
+        val fixture = Fixture()
+        val edit = fixture.edit.copy(projectId = "malaysian-diaries")
+        fixture.store().save(edit, fixture.newOutput())
+        fixture.assertPrepared(edit)
+    }
+
     private inner class Fixture {
         val privateDir = temp.newFolder("private")
         private val cache = temp.newFolder("cache")

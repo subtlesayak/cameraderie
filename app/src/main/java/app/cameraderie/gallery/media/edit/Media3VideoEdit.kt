@@ -16,6 +16,7 @@ import app.cameraderie.gallery.media.GalleryDerivedMedia
 import app.cameraderie.gallery.media.MediaImportTransaction
 import app.cameraderie.gallery.media.history.ImportHistoryDraft
 import app.cameraderie.gallery.media.history.ImportProvenance
+import app.cameraderie.projects.ProjectStore
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -25,7 +26,8 @@ internal data class Media3VideoEdit(
     val trim: TrimRange,
     val crop: CropFrame?,
     val lut: CubeLut?,
-    val format: VideoOutput = VideoOutput.AVC
+    val format: VideoOutput = VideoOutput.AVC,
+    val projectId: String? = null,
 ) {
     val durationUs: Long get() = (trim.endMs - trim.startMs) * 1000
 
@@ -68,10 +70,13 @@ internal data class Media3VideoEdit(
         val bytes = file.length()
         if (bytes <= 0) throw IOException("The encoder produced an empty file.")
         val item = MediaImportTransaction.Item(id, name, bytes)
+        val origin = projectId?.let { project ->
+            ProjectStore(context).use { it.exportOrigin(project, video.entry) }
+        }
         val result = GalleryDerivedMedia.publish(context, file, item, cancelled, { uri ->
             ImportHistoryDraft(id, uri, name, bytes, System.currentTimeMillis(), ImportProvenance.EDITED_FROM_ORIGINAL,
                 cameraModel = video.entry.draft.cameraModel, videoSource = video.name,
-                trimStartUs = trim.startMs * 1000, trimEndUs = trim.endMs * 1000)
+                trimStartUs = trim.startMs * 1000, trimEndUs = trim.endMs * 1000, projectExport = origin)
         }, {})
         if (result.completed.isNotEmpty()) return name
         if (result.reconciliationRequired || result.cleanupFailed)
