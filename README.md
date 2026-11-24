@@ -18,7 +18,15 @@ Cameraderie is a brand-agnostic Android app for browsing camera media, importing
 
 ## Prerequisites
 
-Cameraderie requires Android 12 (API 31) or later. File and memory card imports use Android’s storage picker. For a direct camera connection, use the transport and permissions listed for your camera. [Camera compatibility](docs/COMPATIBILITY.md)
+Cameraderie requires Android 12 (API 31) or later. File and memory card imports use Android’s storage picker.
+
+Any camera that implements a protocol supported by Cameraderie should work with the corresponding adapter if it meets the adapter’s model and firmware requirements. Available features depend on the commands the camera exposes. [Camera compatibility](docs/COMPATIBILITY.md)
+
+## Tested
+
+- **Android device.** 39 native checks passed on the Galaxy S24 FE.
+- **Build.** 591 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
+- **Direct camera connections.** Physical testing is pending for the standalone app. Results will be recorded by camera model, firmware, and transport. [Camera compatibility](docs/COMPATIBILITY.md)
 
 ## Get the app
 
