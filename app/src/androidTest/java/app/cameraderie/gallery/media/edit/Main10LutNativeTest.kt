@@ -38,32 +38,43 @@ class Main10LutNativeTest {
             """.trimIndent().byteInputStream())
             val input = GlUtil.createTexture(1, 1, true)
             val inputBuffer = GlUtil.createFboForTexture(input)
-            GlUtil.focusFramebufferUsingCurrentContext(inputBuffer, 1, 1)
-            GLES30.glClearColor(0.25f, 0.5f, 0.75f, 1f)
-            GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
             val output = GlUtil.createTexture(1, 1, true)
             val outputBuffer = GlUtil.createFboForTexture(output)
-            GlUtil.focusFramebufferUsingCurrentContext(outputBuffer, 1, 1)
-            val shader = Main10LutEffect(lut).toGlShaderProgram(NativeChecks.instance.targetContext, false)
-            try {
-                shader.drawFrame(input, 0)
-                val data = ByteBuffer.allocateDirect(16).order(ByteOrder.nativeOrder())
-                val readType = if (supportsFloat) GLES30.GL_FLOAT else GLES30.GL_HALF_FLOAT
-                GLES30.glReadPixels(0, 0, 1, 1, GLES30.GL_RGBA, readType, data)
-                GlUtil.checkGlError()
-                val pixel = FloatArray(4) { index ->
-                    if (supportsFloat) data.getFloat(index * 4) else Half.toFloat(data.getShort(index * 2))
-                }
-                // The legacy red entries would yield 128.5/255 ≈ 0.50392 at this input.
-                val pixelDescription = "${GLES30.glGetString(GLES30.GL_RENDERER)} RGBA: ${pixel.joinToString()}"
-                assertEquals(pixelDescription, 0.5021f, pixel[0], 0.0006f)
-                assertEquals(pixelDescription, 0.3999f, pixel[1], 0.0006f)
-                assertEquals(pixelDescription, 0.5f, pixel[2], 0.0006f)
-                assertEquals(pixelDescription, 1f, pixel[3], 0f)
-                Log.i("Main10LutNativeTest", "Float framebuffer RGB: ${pixel[0]}, ${pixel[1]}, ${pixel[2]}")
-            } finally {
-                shader.release()
+            fun assertSample(cube: CubeLut, r: Float, g: Float, b: Float, expected: FloatArray) {
+                GlUtil.focusFramebufferUsingCurrentContext(inputBuffer, 1, 1)
+                GLES30.glClearColor(r, g, b, 1f)
+                GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+                GlUtil.focusFramebufferUsingCurrentContext(outputBuffer, 1, 1)
+                val shader = Main10LutEffect(cube).toGlShaderProgram(NativeChecks.instance.targetContext, false)
+                try {
+                    shader.drawFrame(input, 0)
+                    val data = ByteBuffer.allocateDirect(16).order(ByteOrder.nativeOrder())
+                    val readType = if (supportsFloat) GLES30.GL_FLOAT else GLES30.GL_HALF_FLOAT
+                    GLES30.glReadPixels(0, 0, 1, 1, GLES30.GL_RGBA, readType, data)
+                    GlUtil.checkGlError()
+                    val pixel = FloatArray(4) { index ->
+                        if (supportsFloat) data.getFloat(index * 4) else Half.toFloat(data.getShort(index * 2))
+                    }
+                    val description = "${GLES30.glGetString(GLES30.GL_RENDERER)} LUT size ${cube.size} RGBA: ${pixel.joinToString()}"
+                    expected.forEachIndexed { index, value -> assertEquals(description, value, pixel[index], 0.0006f) }
+                    assertEquals(description, 1f, pixel[3], 0f)
+                    Log.i("Main10LutNativeTest", description)
+                } finally { shader.release() }
             }
+            // Quantizing the original LUT to 8-bit would yield red at about 0.50392.
+            assertSample(lut, 0.25f, 0.5f, 0.75f, floatArrayOf(0.5021f, 0.3999f, 0.5f))
+            var component = 0
+            val spanningRows = CubeLut.fromCheckpoint(9) {
+                val index = component++
+                val texel = index / 3
+                when (index % 3) {
+                    0 -> 0.3f + texel % 9 * 0.04f
+                    1 -> 0.1f + texel / 81 * 0.07f
+                    else -> 0.1f + texel / 9 % 9 * 0.1f
+                }
+            }
+            // Blue at 7.5 blends the last slice of row one with the first of row two.
+            assertSample(spanningRows, 0.3125f, 0.5625f, 0.9375f, floatArrayOf(0.4f, 0.625f, 0.55f))
         } finally {
             // The FBOs and textures are local to this standalone context.
             GlUtil.destroyEglContext(display, context)
