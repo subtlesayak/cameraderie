@@ -12,12 +12,25 @@ import java.io.Closeable
 /** Private journal. Separate stage columns support crash recovery without
  * treating merely-created or partially-copied destinations as imported files. */
 class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):ImportHistoryStore,Closeable {
-    private val helper=object:SQLiteOpenHelper(context.applicationContext,name,null,1) {
-        override fun onCreate(db:SQLiteDatabase) {
+    private val helper = object : SQLiteOpenHelper(context.applicationContext, name, null, DATABASE_VERSION) {
+        override fun onCreate(db: SQLiteDatabase) {
             db.execSQL("CREATE TABLE imports (id TEXT PRIMARY KEY NOT NULL, uri TEXT UNIQUE NOT NULL, stage TEXT NOT NULL, started_at INTEGER, draft TEXT NOT NULL, receipt TEXT, completed_at INTEGER, completion_kind TEXT)")
-            db.execSQL("CREATE INDEX imports_by_stage ON imports(stage,completed_at)")
+            createHistoryIndexes(db)
         }
-        override fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int) { error("Unsupported import-history migration") }
+
+        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+            check(oldVersion == 1 && newVersion == 2) {
+                "Unsupported import-history migration from $oldVersion to $newVersion"
+            }
+            // Replace indexes inside SQLiteOpenHelper's upgrade transaction. The journal rows stay in place.
+            db.execSQL("DROP INDEX imports_by_stage")
+            createHistoryIndexes(db)
+        }
+    }
+
+    private fun createHistoryIndexes(db: SQLiteDatabase) {
+        db.execSQL("CREATE INDEX imports_by_stage_and_id ON imports(stage, id)")
+        db.execSQL("CREATE INDEX imports_by_completion ON imports(stage, COALESCE(completed_at, started_at, 0) DESC, id DESC)")
     }
     private fun <T> transaction(block:(SQLiteDatabase)->T):T {
         val db=helper.writableDatabase;db.beginTransaction()
@@ -158,4 +171,8 @@ class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):
     private fun JSONObject.longOrNull(key:String)=if(has(key) && !isNull(key)) getLong(key) else null
     private fun JSONObject.intOrNull(key:String)=if(has(key) && !isNull(key)) getInt(key) else null
     override fun close()=helper.close()
+
+    private companion object {
+        const val DATABASE_VERSION = 2
+    }
 }

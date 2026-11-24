@@ -42,7 +42,7 @@ The USB adapter discovers standard PTP/MTP interfaces across camera brands. Wire
 
 ## Tested
 
-- **Android device.** 39 native checks passed on an Android 12 emulator. The earlier Galaxy S24 FE build also passed 39 native checks.
+- **Android device.** 40 native checks passed on an Android 12 emulator. The earlier Galaxy S24 FE build also passed 39 native checks.
 - **Build.** 602 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
 - **Sony α7 III.** On a Galaxy S24 FE running Android 17, Cameraderie connected by Wi-Fi QR, browsed 789 entries, and reconnected from its saved camera entry. Original, 2M, and VGA JPEG imports and a 720p video proxy passed independent saved-file checksum checks over Wi-Fi. USB PC Remote displayed live view and verified autofocus, recording start and stop, and the gallery lock during recording. USB MTP imported a 4K MP4 with the original filename, capture date, and verified checksum. [Hardware test details](docs/COMPATIBILITY.md#sony-α7-iii-hardware-test)
 

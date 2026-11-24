@@ -32,4 +32,6 @@ Keep the release key outside the repository and use the same identity for update
 
 ## Verification
 
-The Sony USB live-control build passed 602 JVM tests, debug and release assembly, and lint with zero errors. The earlier USB transfer adapter passed 39 native checks on an Android 12 emulator. The preceding Galaxy S24 FE build passed 39 native checks. Cameraderie also passed the JVM suite and debug assembly with `-PcameraModulesDir=../OpenGrip`. The release APK’s signature was checked using a dedicated verification key. Live-camera checks are tracked in the [compatibility matrix](COMPATIBILITY.md).
+The import-history upgrade build passed 602 JVM tests, debug and release assembly, and lint with zero errors. Forty native checks passed on an Android 12 emulator. The preceding Galaxy S24 FE build passed 39 native checks. Cameraderie also passed the JVM suite and debug assembly with `-PcameraModulesDir=../OpenGrip`. The release APK’s signature was checked using a dedicated verification key. Live-camera checks are tracked in the [compatibility matrix](COMPATIBILITY.md).
+
+The version 1 to version 2 SQLite upgrade rebuilds the indexes used for completion sorting and stage pagination while keeping journal rows in place. The Android 12 upgrade test covered complete, legacy, staged, verified, and interrupted rows and completed a verified folder import after upgrading. Opening Library after an in-place update of the Galaxy test build preserved all eight existing journal rows and their SHA-256 receipts.
