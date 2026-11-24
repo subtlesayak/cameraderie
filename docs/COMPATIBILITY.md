@@ -59,7 +59,7 @@ To try the Android viewfinder, set **Ctrl w/ Smartphone** to **Off** and **USB C
 
 With **USB Connection** set to **MTP**, the α7 III exposed two MP4s on the Galaxy S24 FE. Cameraderie imported the newest clip through **Connect a USB camera** and recorded the original filename, capture date, and SHA-256. The 71,308,267-byte file appeared in the offline Library and matched the completed receipt when hashed separately.
 
-FFmpeg decoded all 144 video frames and the PCM audio track without errors. The clip is 5.76 seconds of H.264 video at 3840 × 2160 and 25 fps. A separate card checksum and physical RAW transfer remain pending.
+FFmpeg decoded all 144 video frames and the PCM audio track without errors. The clip is 5.76 seconds of H.264 video at 3840 × 2160 and 25 fps. The card’s copy was hashed independently after mounting the camera as USB Mass Storage on the Mac. Its SHA-256 matched the Cameraderie import. Direct USB MTP RAW transfer remains pending.
 
 ## Camera acceptance checklist
 
@@ -70,6 +70,16 @@ Record the camera model, firmware, Android device and version, lens, shooting mo
 - During recording, try to open the gallery and confirm the app protects the recording. Once idle, browse and import, then return to shooting and confirm the camera is ready.
 - Verify the catalogue on each accessible storage location. Import a JPEG, video, and RAW when available. Compare saved originals against an independent card read, and check filenames, timestamps, and receipts.
 - For transfers that support a queue or resume, interrupt one download and verify resumed bytes, duplicate detection, and a clean retry.
+
+## Action 6 editor verification
+
+On Galaxy S24 FE running Android 17, Cameraderie imported a retained Action 6 original from Android storage. The import receipt and separate hashes matched the original before and after editing. This clip’s camera metadata identified D-Log M.
+
+Dragging the crop and trim handles produced a 1084 × 1920 display crop and a 0.502–2.504 s trim. Applying the DJI D-Log M to Rec.709 LUT and choosing **HEVC · 10-bit Rec.709** published a separate MP4. FFprobe confirmed Main 10, BT.709 colour primaries, transfer and matrix, portrait rotation metadata, and AAC audio. FFmpeg decoded both tracks. All 240 selected source frames matched the exported presentation timestamps within 0.006 ms. The audio’s largest packet interval was 21.334 ms.
+
+A separate Mac reference export used FFmpeg and VideoToolbox with the same original and LUT, a central 1080 × 1920 portrait crop, and a 0.500–2.500 s trim. It verified as Main 10 with BT.709 tags, AAC audio, and 240 decodable video frames. The source SHA-256 remained unchanged. [DJI Action 6 LUT downloads](https://www.dji.com/downloads/products/osmo-action-6)
+
+Direct Action 6 proxy browsing and import from the camera remain pending.
 
 ## Full media acceptance
 
