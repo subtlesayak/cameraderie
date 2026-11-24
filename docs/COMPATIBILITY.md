@@ -1,6 +1,6 @@
 # Camera compatibility
 
-The first Cameraderie port uses the paths exercised in OpenGrip Code130. OpenGrip observations are baseline evidence. Standalone acceptance requires repeating the workflows with Cameraderie installed and recording the firmware readout, camera settings, Android version, and transport for each run.
+Cameraderie imports files independently of camera brand through Android’s file picker. This matrix tracks direct connection features by model and transport. Standalone acceptance records the firmware, camera settings, and Android version for each physical run.
 
 | Camera | Transport | Implemented in Cameraderie | Standalone physical acceptance |
 | --- | --- | --- | --- |

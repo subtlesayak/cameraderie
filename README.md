@@ -1,16 +1,15 @@
 # Cameraderie
 
-**See. Shoot. Save.** An Android camera companion for the Sony a6400 and DJI Osmo Action 6, with an offline media library and on-device editing. Cameraderie was separated from **OpenGrip Code130** to give its camera gallery, transfers, and editor a standalone app. OpenGrip handles physical remotes, mappings, and automation.
+**See. Shoot. Save.** Cameraderie is a brand-agnostic Android camera companion for browsing, importing, and editing camera media. It was separated from **OpenGrip** as a standalone app.
 
 ## Workflows
 
-- **DJI Osmo Action 6.** Authorize the camera over Bluetooth. Use the shooting controls for photo shutter, normal-video recording, and mode selection when the camera reports a compatible state. Open the gallery to join the camera’s Wi-Fi, browse SD or internal storage, preview supported recordings, and queue originals.
-- **Sony a6400.** Join camera Wi-Fi by QR code, manual entry, or a saved connection, or connect a USB cable and grant Android access. Choose Original, 2M, or VGA for compatible JPEG imports. The camera and transport determine which files and representations are offered.
-- **Library.** Select files or a folder from Android’s picker. Save verified imports to the phone album or a chosen writable folder. Open and share saved files through Android. The library shows capture information and records import checksums.
+- **Import from a camera, card or phone.** Select files or a folder through Android’s picker, including media on an attached SD reader or USB storage. The camera brand is independent of the file import workflow. Cameraderie checks the saved copy, records capture information and checksums, and opens or shares files through Android.
+- **Connect to a camera.** Available features depend on the camera, firmware, and connection. Adapters can provide discovery, shooting controls, media browsing, proxy playback, verified downloads, and an interrupted-transfer queue. See the [compatibility matrix](docs/COMPATIBILITY.md) for device and transport details.
 - **Editing.** Open a verified original video from Library. Crop in the preview, trim with the filmstrip, save a full-resolution frame, or apply a `.cube` LUT and export a separate MP4. Main 10 output depends on the device encoder and source. Supported export checkpoints can resume locally.
 - **Ride telemetry.** Attach a GPX track or route, a CSV with a timestamp column, or a JSON sample array. Use ISO 8601 timestamps with offsets or absolute Unix timestamps in seconds or milliseconds. Edit the clip start time and signed offset, save playhead highlights, and export the original ride file and alignment JSON. Cameraderie keeps the attachment linked to the verified video checksum.
 
-The [compatibility matrix](docs/COMPATIBILITY.md) lists device evidence and pending capabilities. Camera Wi-Fi and Bluetooth requests are initiated locally. Files leave the device when you explicitly choose a destination or another app in Android’s picker or share sheet.
+Camera Wi-Fi and Bluetooth requests are initiated locally. Files leave the device when you explicitly choose a destination or another app in Android’s picker or share sheet.
 
 ## Relink OpenGrip imports
 
