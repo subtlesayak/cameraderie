@@ -363,11 +363,16 @@ internal class SonyMediaBrowser(
             holder.request?.close();holder.request=null;holder.binding++
             val item=entries[position];val binding=holder.binding
             val compact=columns()==3
-            holder.title.text=item.name;holder.title.textSize=if(compact)13f else UiKit.Type.body
-            holder.title.maxLines=if(compact)1 else if(holder.list)3 else 2;holder.title.minLines=1
-            holder.metadata.textSize=if(compact)12f else UiKit.Type.small
-            holder.metadata.maxLines=if(holder.list)Int.MAX_VALUE else 2;holder.metadata.ellipsize=android.text.TextUtils.TruncateAt.END
-            holder.metadata.text=item.metadata+(if(holder.list) "\n"+(item.capture?.date?.format(java.time.format.DateTimeFormatter.ofPattern("d MMM uuuu",resources.configuration.locales[0])) ?: "Capture date unknown") else "")
+            holder.title.text = item.name
+            holder.title.textSize = if (compact) 13f else UiKit.Type.body
+            holder.title.setSingleLine(!holder.list && !item.folder)
+            holder.title.maxLines = if (holder.list) 3 else if (item.folder) 2 else 1
+            holder.title.ellipsize = if (holder.list || item.folder) android.text.TextUtils.TruncateAt.END else android.text.TextUtils.TruncateAt.MIDDLE
+            holder.metadata.visibility = if (holder.list && !item.folder) VISIBLE else GONE
+            if (holder.metadata.visibility == VISIBLE) {
+                val date = item.capture?.date?.format(java.time.format.DateTimeFormatter.ofPattern("d MMM uuuu", resources.configuration.locales[0]))
+                holder.metadata.text = "${item.metadata}\n${date ?: "Capture date unknown"}"
+            }
             if(!holder.list) holder.imageBox.layoutParams.height=ui.dp((contentWidthDp()/columns()-24).coerceAtLeast(64))
             holder.card.contentDescription="${if(item.folder) "Open folder" else if(selecting) "Select file" else "Preview and details"}: ${item.name}, ${item.metadata}"
             holder.card.isEnabled=!busy && (!selecting || (selectionReady && !item.folder && item.downloadable && item.size>0))

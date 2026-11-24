@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -156,7 +157,12 @@ open class ImportedImagesActivity:CameraderieActivity() {
                 main.post {
                     if(!live(token))return@post
                     records=rows;unavailable.clear();selected.retainAll(rows.map { it.draft.id }.toSet());loading=false;progress.visibility=View.GONE
-                    status.text="${rows.size} saved imports"+(if(rows.any { it.draft.provenance==ImportProvenance.LEGACY_UNKNOWN }) " · Earlier imports have no recorded quality." else "")+(if(!recovery.ran) " · An import is active; refresh for new files." else if(recovery.unresolved>0) " · ${recovery.unresolved} unfinished records need another check." else " · Camera connection not needed.")
+                    val count = if (rows.size == 1) "1 saved import" else "${rows.size} saved imports"
+                    status.text = when {
+                        !recovery.ran -> "$count · Import in progress"
+                        recovery.unresolved > 0 -> "$count · ${recovery.unresolved} unfinished imports"
+                        else -> count
+                    }
                     applyFilter()
                 }
             } catch(_:Exception) { main.post {
@@ -176,7 +182,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
     }
     private fun columns():Int {
         val width=if(::recycler.isInitialized && recycler.width>0)(recycler.width/resources.displayMetrics.density).toInt() else (resources.configuration.screenWidthDp-32).coerceAtLeast(0)
-        return SonyGalleryLayout.columns(mode,width,resources.configuration.fontScale)
+        return SonyGalleryLayout.importedColumns(mode, width, resources.configuration.fontScale)
     }
     private fun updateLayout() {
         val span=columns();grid.spanCount=span;layoutButton.title=if(span==1)"Layout: list" else "Layout: $span columns"
@@ -307,31 +313,99 @@ open class ImportedImagesActivity:CameraderieActivity() {
             info.isCheckable=isCheckable;info.isChecked=isChecked;info.contentDescription=contentDescription;info.stateDescription=stateDescription
         }
     }
-    private class Holder(val card:MediaCard,val image:ImageView,val placeholder:TextView,val name:TextView,val caption:TextView,val marker:SonySelectionMarker):RecyclerView.ViewHolder(card) {
-        var request:Closeable?=null;var binding=0
+    private class SquarePreview(context: android.content.Context) : FrameLayout(context) {
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            val side = MeasureSpec.getSize(widthMeasureSpec)
+            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(side, MeasureSpec.EXACTLY))
+        }
     }
-    private inner class MediaAdapter:RecyclerView.Adapter<Holder>() {
-        override fun getItemCount()=showing.size
-        override fun getItemViewType(position:Int)=columns()
-        override fun onCreateViewHolder(parent:ViewGroup,type:Int):Holder {
-            val card=MediaCard(this@ImportedImagesActivity).apply {
-                radius=ui.dp(20).toFloat();cardElevation=0f;strokeWidth=0;checkedIcon=null;setCardBackgroundColor(ui.tone.surface);isClickable=true;isFocusable=true
-                layoutParams=RecyclerView.LayoutParams(-1,-2).apply { setMargins(ui.dp(4),ui.dp(4),ui.dp(4),ui.dp(4)) }
+
+    private class Holder(
+        val card: MediaCard,
+        val image: ImageView,
+        val placeholder: TextView,
+        val name: TextView,
+        val caption: TextView?,
+        val marker: SonySelectionMarker,
+        val videoBadge: ImageView,
+    ) : RecyclerView.ViewHolder(card) {
+        var request: Closeable? = null
+        var binding = 0
+    }
+
+    private inner class MediaAdapter : RecyclerView.Adapter<Holder>() {
+        override fun getItemCount() = showing.size
+
+        override fun getItemViewType(position: Int): Int =
+            if (columns() == 1) SonyGalleryLayout.Mode.LIST.ordinal else mode.ordinal
+
+        override fun onCreateViewHolder(parent: ViewGroup, type: Int): Holder {
+            val tileMode = SonyGalleryLayout.Mode.entries[type]
+            val list = tileMode == SonyGalleryLayout.Mode.LIST
+            val compact = tileMode == SonyGalleryLayout.Mode.COMPACT
+            val card = MediaCard(this@ImportedImagesActivity).apply {
+                radius = ui.dp(if (compact) 12 else 20).toFloat()
+                cardElevation = 0f
+                strokeWidth = 0
+                checkedIcon = null
+                setCardBackgroundColor(ui.tone.surface)
+                isClickable = true
+                isFocusable = true
+                layoutParams = RecyclerView.LayoutParams(-1, -2).apply {
+                    val gap = ui.dp(if (compact) 3 else 4)
+                    setMargins(gap, gap, gap, gap)
+                }
             }
-            val body=LinearLayout(this@ImportedImagesActivity).apply { orientation=if(type==1)LinearLayout.HORIZONTAL else LinearLayout.VERTICAL;setPadding(ui.dp(8),ui.dp(8),ui.dp(8),ui.dp(8));importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS }
-            val image=RoundedMediaImageView(this@ImportedImagesActivity,12f).apply { scaleType=ImageView.ScaleType.CENTER_CROP }
-            val box=FrameLayout(this@ImportedImagesActivity)
-            val placeholder=ui.text("FILE",18f,secondary=true,bold=true).apply { gravity=Gravity.CENTER }
-            val side=if(type==1)ui.dp(72) else ((recycler.width.takeIf { it>0 } ?: resources.displayMetrics.widthPixels)/type-ui.dp(24)).coerceAtLeast(ui.dp(48))
-            box.addView(image,FrameLayout.LayoutParams(-1,-1));box.addView(placeholder,FrameLayout.LayoutParams(-1,-1))
-            val marker=SonySelectionMarker(this@ImportedImagesActivity).apply { visibility=View.GONE }
-            box.addView(marker,FrameLayout.LayoutParams(ui.dp(28),ui.dp(28),Gravity.TOP or Gravity.END).apply { setMargins(ui.dp(4),ui.dp(4),ui.dp(4),ui.dp(4)) })
-            body.addView(box,LinearLayout.LayoutParams(if(type==1)ui.dp(72) else -1,side))
-            val words=ui.column();val name=ui.text("",if(type==3)13f else 16f,bold=true).apply { maxLines=2;ellipsize=android.text.TextUtils.TruncateAt.END }
-            val caption=ui.text("",if(type==3)11f else 13f,secondary=true).apply { maxLines=5;ellipsize=android.text.TextUtils.TruncateAt.END }
-            ui.add(words,name);ui.add(words,caption,4)
-            if(type==1)body.addView(words,LinearLayout.LayoutParams(0,-2,1f).apply { marginStart=ui.dp(12) }) else ui.add(body,words,8)
-            card.addView(body);return Holder(card,image,placeholder,name,caption,marker)
+            val body = LinearLayout(this@ImportedImagesActivity).apply {
+                orientation = if (list) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+                val inset = ui.dp(if (compact) 4 else 8)
+                setPadding(inset, inset, inset, inset)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            }
+            val image = RoundedMediaImageView(this@ImportedImagesActivity, if (compact) 8f else 12f).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+            }
+            val box = SquarePreview(this@ImportedImagesActivity)
+            val placeholder = ui.text("FILE", 13f, secondary = true, bold = true).apply { gravity = Gravity.CENTER }
+            box.addView(image, FrameLayout.LayoutParams(-1, -1))
+            box.addView(placeholder, FrameLayout.LayoutParams(-1, -1))
+            val videoBadge = ImageView(this@ImportedImagesActivity).apply {
+                setImageResource(R.drawable.ic_play)
+                setColorFilter(android.graphics.Color.WHITE)
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(0xB3000000.toInt())
+                    cornerRadius = ui.dp(12).toFloat()
+                }
+                visibility = View.GONE
+            }
+            box.addView(videoBadge, FrameLayout.LayoutParams(ui.dp(24), ui.dp(24), Gravity.BOTTOM or Gravity.START).apply {
+                marginStart = ui.dp(4)
+                bottomMargin = ui.dp(4)
+            })
+            val marker = SonySelectionMarker(this@ImportedImagesActivity).apply { visibility = View.GONE }
+            box.addView(marker, FrameLayout.LayoutParams(ui.dp(28), ui.dp(28), Gravity.TOP or Gravity.END).apply {
+                marginEnd = ui.dp(4)
+                topMargin = ui.dp(4)
+            })
+            body.addView(box, LinearLayout.LayoutParams(if (list) ui.dp(72) else -1, -2))
+            val words = ui.column()
+            val name = ui.text("", if (compact) 12f else 16f, bold = true).apply {
+                if (compact) setSingleLine(true) else maxLines = 2
+                ellipsize = if (compact) TextUtils.TruncateAt.MIDDLE else TextUtils.TruncateAt.END
+            }
+            val caption = if (compact) null else ui.text("", 13f, secondary = true).apply {
+                maxLines = 5
+                ellipsize = TextUtils.TruncateAt.END
+            }
+            ui.add(words, name)
+            caption?.let { ui.add(words, it, 4) }
+            if (list) {
+                body.addView(words, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(12) })
+            } else {
+                ui.add(body, words, if (compact) 2 else 8)
+            }
+            card.addView(body)
+            return Holder(card, image, placeholder, name, caption, marker, videoBadge)
         }
         private fun bindState(holder:Holder,entry:ImportHistoryEntry) {
             val id=entry.draft.id
@@ -339,7 +413,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
             holder.card.isEnabled=!loading && !busy
             holder.card.strokeWidth=if(id in selected)ui.dp(2) else 0;holder.card.strokeColor=ui.tone.accent;holder.card.setCardBackgroundColor(if(id in selected)ui.tone.container else ui.tone.surface)
             holder.name.setTextColor(if(id in selected)ui.tone.onContainer else ui.tone.text)
-            holder.caption.setTextColor(if(id in selected)ui.tone.onContainer else ui.tone.secondary)
+            holder.caption?.setTextColor(if(id in selected)ui.tone.onContainer else ui.tone.secondary)
             holder.card.contentDescription="${entry.receipt?.displayName ?: entry.draft.displayName}, ${ImportedMediaLabels.destination(entry)}, ${ImportedMediaLabels.representation(entry)}, ${ImportedMediaLabels.captured(entry)}, ${ImportedMediaLabels.imported(entry)}"
             holder.card.stateDescription=if(id in unavailable)"File unavailable" else if(selecting)if(id in selected)"Selected" else "Not selected" else "Open details"
         }
@@ -348,7 +422,9 @@ open class ImportedImagesActivity:CameraderieActivity() {
         }
         override fun onBindViewHolder(holder:Holder,position:Int) {
             holder.request?.close();holder.request=null;val binding=++holder.binding;val entry=showing[position];val id=entry.draft.id
-            holder.name.text=ImportedMediaLabels.tileFilename(entry.receipt?.displayName ?: entry.draft.displayName,columns());holder.caption.text=ImportedMediaLabels.tileSummary(entry)
+            holder.name.text = entry.receipt?.displayName ?: entry.draft.displayName
+            holder.caption?.let { it.text = ImportedMediaLabels.tileSummary(entry) }
+            holder.videoBadge.visibility = if (entry.receipt?.mime?.startsWith("video/") == true) View.VISIBLE else View.GONE
             holder.image.setImageDrawable(null);holder.placeholder.visibility=View.VISIBLE
             holder.placeholder.text=entry.receipt?.mime?.substringAfter('/')?.substringAfterLast('-')?.uppercase()?.take(6) ?: "FILE"
             bindState(holder,entry)
@@ -358,10 +434,10 @@ open class ImportedImagesActivity:CameraderieActivity() {
                 if(holder.binding!=binding)return@load
                 holder.image.setImageBitmap(result.bitmap);holder.placeholder.visibility=if(result.bitmap==null)View.VISIBLE else View.GONE
                 if(result.availability==ImportedMediaLoader.Availability.UNAVAILABLE) {
-                    unavailable.add(id);val changed=selected.remove(id);holder.card.stateDescription="File unavailable on this phone";holder.caption.text="${ImportedMediaLabels.destination(entry)}\nFile unavailable"
+                    unavailable.add(id);val changed=selected.remove(id);holder.card.stateDescription="File unavailable on this phone";holder.caption?.let { it.text = "${ImportedMediaLabels.destination(entry)}\nFile unavailable" };holder.placeholder.text="Unavailable"
                     if(changed)refreshSelection()
                 } else if(result.availability==ImportedMediaLoader.Availability.AVAILABLE) {
-                    unavailable.remove(id);holder.caption.text=ImportedMediaLabels.tileSummary(entry);bindState(holder,entry)
+                    unavailable.remove(id);bindState(holder,entry)
                 }
             }
         }

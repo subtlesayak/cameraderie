@@ -53,13 +53,6 @@ object ImportedMediaLabels {
         if(entry.draft.offeredReduced==true)return "Camera copy · ${quality(entry.draft.requestedQuality) ?: "JPEG"}"
         return if(entry.draft.requestedQuality=="ORIGINAL_JPEG") "Original JPEG · offered file" else "Camera file · unchanged"
     }
-    fun tileFilename(name:String,columns:Int):String {
-        if(columns!=3 || name.length<15)return name
-        val dot=name.lastIndexOf('.');if(dot<=0 || dot==name.lastIndex)return name
-        val underscore=name.lastIndexOf('_',dot)
-        val split=if(underscore>name.length/2 && dot-underscore<=8)underscore+1 else dot
-        return name.substring(0,split)+"\n"+name.substring(split)
-    }
     fun destination(entry:ImportHistoryEntry):String {
         val folder=entry.draft.folderTree ?: return "Phone album"
         val documentId=java.net.URI(folder).path.removePrefix("/tree/")

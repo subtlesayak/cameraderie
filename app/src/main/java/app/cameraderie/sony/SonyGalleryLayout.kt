@@ -9,5 +9,10 @@ internal object SonyGalleryLayout {
         if(mode==Mode.COMPACT && compactAvailable(widthDp,fontScale)) return 3
         return if(widthDp>=280 && fontScale<1.5f) 2 else 1
     }
+    fun importedColumns(mode: Mode, widthDp: Int, fontScale: Float): Int {
+        val standard = columns(mode, widthDp, fontScale)
+        return if (standard == 3 && widthDp >= 352) 4 else standard
+    }
+
     fun compactAvailable(widthDp:Int,fontScale:Float)=widthDp>=320 && fontScale<=1.15f
 }

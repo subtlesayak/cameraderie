@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import androidx.exifinterface.media.ExifInterface
 import android.net.Uri
 import android.provider.MediaStore
+import android.view.View
 import app.cameraderie.NativeChecks
 import app.cameraderie.gallery.media.LocalMediaShare
 import app.cameraderie.gallery.media.MediaImportTransaction
@@ -317,6 +318,22 @@ class SonyMediaNativeTest {
                 fun views(v:android.view.View):List<android.view.View> = listOf(v)+if(v is android.view.ViewGroup)(0 until v.childCount).flatMap { views(v.getChildAt(it)) } else emptyList()
                 val cards=views(activity!!.window.decorView).filterIsInstance<com.google.android.material.card.MaterialCardView>()
                 assertTrue(cards.isNotEmpty());assertTrue(cards.all { it.checkedIcon==null })
+                val recycler = views(activity!!.window.decorView).filterIsInstance<androidx.recyclerview.widget.RecyclerView>().single()
+                val span = (recycler.layoutManager as androidx.recyclerview.widget.GridLayoutManager).spanCount
+                val widthDp = recycler.width / recycler.resources.displayMetrics.density
+                if (recycler.resources.configuration.fontScale <= 1.15f && widthDp >= 352f) assertEquals(4, span)
+                if (span > 1) {
+                    val card = cards.single { it.contentDescription.toString().startsWith("$available,") }
+                    val labels = views(card).filterIsInstance<android.widget.TextView>().filter { it.visibility == View.VISIBLE }
+                    val filename = labels.single { it.text.toString() == available }
+                    assertEquals(1, filename.maxLines)
+                    assertEquals(android.text.TextUtils.TruncateAt.MIDDLE, filename.ellipsize)
+                    assertFalse(labels.any { it.text.toString().contains("Phone album") })
+                    val thumbnail = views(card).filterIsInstance<app.cameraderie.ui.RoundedMediaImageView>().single()
+                    assertTrue(thumbnail.width > 0)
+                    assertEquals(thumbnail.width, thumbnail.height)
+                    assertTrue(card.height < thumbnail.height * 1.5)
+                }
             }
             instrumentation.runOnMainSync { activity!!.recreate() }
             val recreateDeadline=android.os.SystemClock.uptimeMillis()+8_000
@@ -587,6 +604,13 @@ class SonyMediaNativeTest {
                     browser.setBusy(true);browser.submit(items(60),"Photos",false,true);layout()
                     val recycler=views(browser).filterIsInstance<androidx.recyclerview.widget.RecyclerView>().single()
                     val manager=recycler.layoutManager as androidx.recyclerview.widget.GridLayoutManager
+                    if (manager.spanCount > 1) {
+                        val tile = recycler.findViewHolderForAdapterPosition(0)!!.itemView
+                        val labels = views(tile).filterIsInstance<android.widget.TextView>().filter { it.visibility == View.VISIBLE }
+                        assertEquals(1, labels.single { it.text.startsWith("photo") && it.text.endsWith(".JPG") }.maxLines)
+                        assertFalse(labels.any { it.text.toString().contains("100 B") })
+                        assertTrue(tile.contentDescription.toString().contains("JPG · 100 B"))
+                    }
                     manager.scrollToPositionWithOffset(40,0);layout();assertTrue(manager.findFirstVisibleItemPosition()>=38)
                     browser.submit(items(61),"Photos",false,true);layout();assertEquals(0,manager.findFirstVisibleItemPosition())
                     assertFalse(views(browser).filterIsInstance<android.widget.Button>().single { it.text.toString()=="Select files" }.isEnabled)

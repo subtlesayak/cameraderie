@@ -49,12 +49,4 @@ class ImportedMediaLabelsTest {
         assertEquals("Phone album",ImportedMediaLabels.destination(album))
         assertEquals("Folder · My selects",ImportedMediaLabels.tileSummary(copy).lineSequence().first())
     }
-    @Test fun compactFilenameBreakPreservesIdentityAndKeepsExtensionsTogether() {
-        assertEquals("ORG_SYK09890\n.JPG",ImportedMediaLabels.tileFilename("ORG_SYK09890.JPG",3))
-        assertEquals("ORG_SYK09890_\n2M.JPG",ImportedMediaLabels.tileFilename("ORG_SYK09890_2M.JPG",3))
-        for(name in listOf("ORG_SYK09890.JPG","ORG_SYK09890_2M.JPG","ORG_SYK09890_VGA.JPG","clip.MP4")) {
-            assertEquals(name,ImportedMediaLabels.tileFilename(name,3).replace("\n",""))
-            assertEquals(name,ImportedMediaLabels.tileFilename(name,1))
-        }
-    }
 }
