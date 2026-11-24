@@ -30,4 +30,6 @@ Both shoots belong to one project. You can review the whole trip, open just the 
 
 On an Android 12 emulator, Cameraderie created Malaysian Diaries and both shoots, assigned a verified JPEG and MP4, moved the JPEG to Day 2, and reopened the project offline after a process restart. Independent readback confirmed both original hashes and Library receipts were unchanged. This check used synthetic media.
 
+A follow-up used a saved Sony a6400 JPEG identified by EXIF and an Action 6 MP4 from the wireless test. Cameraderie imported both through the file picker and assigned the JPEG to Day 1 and the MP4 to Day 2. The published APK updated in place and reopened the project offline. The saved copies matched the source SHA-256 values and their Library receipts.
+
 See the [user guide](USAGE.md) for workflows available in the app and the [compatibility matrix](COMPATIBILITY.md) for connection and hardware test results.
