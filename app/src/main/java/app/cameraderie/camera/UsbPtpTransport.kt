@@ -45,23 +45,26 @@ internal class UsbPtpTransport(
         val request = ByteBuffer.allocate(length).order(ByteOrder.LITTLE_ENDIAN)
             .putInt(length).putShort(1).putShort(operation.toShort()).putInt(transaction)
         for (param in params) request.putInt(param)
-        if (write(request.array()) != length) throw IOException("USB camera did not receive the complete request.")
+        val written = write(request.array())
+        if (written != length) throw IOException("Incomplete USB request for 0x${operation.toString(16)} ($written of $length bytes).")
 
-        val first = readContainer(transaction, maxData)
+        val first = readContainer(operation, transaction, maxData)
         if (first.type == RESPONSE) return Response(first.code, null)
         if (first.type != DATA || first.code != operation) throw IOException("Unexpected USB camera data.")
-        val response = readContainer(transaction, 0)
+        val response = readContainer(operation, transaction, 0, afterData = true)
         if (response.type != RESPONSE) throw IOException("USB camera omitted the operation response.")
         return Response(response.code, first.payload)
     }
 
     private data class Container(val type: Int, val code: Int, val payload: ByteArray?)
 
-    private fun readContainer(transaction: Int, maxData: Int): Container {
+    private fun readContainer(operation: Int, transaction: Int, maxData: Int, afterData: Boolean = false): Container {
         var received = read(input, packetSize)
         // A full-sized final USB packet can be followed by one terminating zero-length packet.
         if (received == 0) received = read(input, packetSize)
-        if (received !in HEADER_SIZE..packetSize) throw IOException("USB camera timed out or sent an incomplete header.")
+        if (received !in HEADER_SIZE..packetSize) {
+            throw IOException("USB camera did not return a complete header for operation 0x${operation.toString(16)} (read $received${if (afterData) " after data" else ""}).")
+        }
         val header = ByteBuffer.wrap(input).order(ByteOrder.LITTLE_ENDIAN)
         val length = header.int
         val type = header.short.toInt() and 0xffff

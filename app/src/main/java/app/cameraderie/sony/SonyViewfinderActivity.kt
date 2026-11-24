@@ -20,6 +20,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import app.cameraderie.ui.CameraderieActivity
 import app.cameraderie.ui.UiKit
+import app.gripbridge.core.Recording
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.io.IOException
 import java.util.concurrent.Executors
@@ -31,12 +32,15 @@ class SonyViewfinderActivity : CameraderieActivity() {
     private val frameSlot = Semaphore(1)
     private val permissionAction get() = "$packageName.SONY_VIEWFINDER_USB_PERMISSION"
     @Volatile private var generation = 0
+    @Volatile private var galleryRequest: Int? = null
     private var pendingDevice: Int? = null
     private var activeDevice: Int? = null
     private lateinit var status: TextView
     private lateinit var connect: Button
     private lateinit var disconnect: Button
     private lateinit var preview: ImageView
+    private lateinit var cameraState: TextView
+    private lateinit var gallery: Button
 
     private val usbEvents = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -86,6 +90,20 @@ class SonyViewfinderActivity : CameraderieActivity() {
         ui.add(body, connect, 12)
         disconnect = ui.action("Disconnect") { reset("USB camera disconnected.") }.apply { visibility = View.GONE }
         ui.add(body, disconnect, 12)
+        cameraState = ui.text("", UiKit.Type.small, secondary = true).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            visibility = View.GONE
+        }
+        ui.add(body, cameraState, 8)
+        gallery = ui.action("Open camera gallery") {
+            gallery.isEnabled = false
+            cameraState.text = "Checking camera before opening the gallery…"
+            galleryRequest = generation
+        }.apply {
+            isEnabled = false
+            visibility = View.GONE
+        }
+        ui.add(body, gallery, 8)
         val filter = IntentFilter(permissionAction).apply { addAction(UsbManager.ACTION_USB_DEVICE_DETACHED) }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(usbEvents, filter, Context.RECEIVER_NOT_EXPORTED)
         else @Suppress("DEPRECATION") registerReceiver(usbEvents, filter)
@@ -129,6 +147,7 @@ class SonyViewfinderActivity : CameraderieActivity() {
         worker.execute {
             try {
                 if (token != generation) return@execute
+                var openGallery = false
                 SonyUsbViewfinder.open(manager, device).use { session ->
                     val label = listOfNotNull(session.model, session.firmware?.let { "Firmware $it" }, "USB").joinToString(" · ")
                     runOnUiThread {
@@ -136,7 +155,30 @@ class SonyViewfinderActivity : CameraderieActivity() {
                     }
                     var lastFrame = SystemClock.elapsedRealtime()
                     var streaming = false
+                    var nextStateAt = 0L
+                    var displayed: SonyUsbStatus? = null
                     while (token == generation) {
+                        val handoff = galleryRequest == token
+                        if (handoff || SystemClock.elapsedRealtime() >= nextStateAt) {
+                            val camera = session.status(fresh = handoff)
+                            nextStateAt = SystemClock.elapsedRealtime() + 750
+                            if (handoff && camera.recording == Recording.IDLE) {
+                                openGallery = true
+                                break
+                            }
+                            if (handoff || displayed != camera) {
+                                if (displayed == null) android.util.Log.i(
+                                    "CameraderieViewfinder", "Sony USB connected, camera status ${camera.recording}",
+                                )
+                                displayed = camera
+                                runOnUiThread {
+                                    if (token == generation) {
+                                        if (handoff) galleryRequest = null
+                                        showCameraState(camera)
+                                    }
+                                }
+                            }
+                        }
                         if (!frameSlot.tryAcquire()) {
                             SystemClock.sleep(20)
                             continue
@@ -175,6 +217,12 @@ class SonyViewfinderActivity : CameraderieActivity() {
                         }
                     }
                 }
+                if (openGallery) runOnUiThread {
+                    if (token == generation) {
+                        reset("USB viewfinder closed. Select a connection to browse camera files.")
+                        startActivity(SonyGalleryActivity.connectionIntent(this, useUsb = false))
+                    }
+                }
             } catch (error: Exception) {
                 val message = (error as? IOException)?.message ?: "The camera connection ended. Check the USB cable and retry."
                 runOnUiThread { if (token == generation) reset(message) }
@@ -182,8 +230,24 @@ class SonyViewfinderActivity : CameraderieActivity() {
         }
     }
 
+    private fun showCameraState(camera: SonyUsbStatus) {
+        val recording = when (camera.recording) {
+            Recording.IDLE -> "Camera idle"
+            Recording.RECORDING -> "Finish recording on the camera before opening the gallery."
+            Recording.UNKNOWN -> "Waiting for camera recording status."
+        }
+        cameraState.text = listOfNotNull(recording, camera.iso?.let { "ISO $it" }).joinToString(" · ")
+        cameraState.visibility = View.VISIBLE
+        gallery.visibility = View.VISIBLE
+        gallery.isEnabled = galleryRequest == null && camera.recording == Recording.IDLE
+    }
+
     private fun reset(message: String) {
         generation++
+        galleryRequest = null
+        cameraState.visibility = View.GONE
+        gallery.visibility = View.GONE
+        gallery.isEnabled = false
         activeDevice = null
         pendingDevice = null
         preview.setImageDrawable(null)

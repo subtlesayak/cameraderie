@@ -7,13 +7,13 @@ Cameraderie imports files independently of camera brand through Android’s file
 | DJI Osmo Action 6 | Bluetooth | Discovery, authorization, reconnect, firmware readout, photo shutter, normal-video record start and stop, Photo/Video mode selection. Camera status gates commands and gallery entry. | Pending. Record firmware, confirm results on the camera, and test blocked gallery entry during recording. |
 | DJI Osmo Action 6 | Bluetooth → local Wi-Fi | Idle preflight, playback handoff, SD and internal catalogues, Media3 playback of supported proxies, verified original downloads, durable queue, validated range resume and explicit restart. | Pending. Repeat incomplete catalogue and permission recovery, DNG and WAV companions, and return to shooting on the same camera. |
 | Sony α7 III (ILCE-7M3) | Local Wi-Fi | Sony media discovery, gallery browsing, and JPEG import. | QR, model discovery, catalogue, saved reconnect, and Original/2M/VGA JPEG passed on Galaxy S24 FE. [Hardware test details](#sony-α7-iii-hardware-test) |
-| Sony α7 III (ILCE-7M3) | USB PC Remote | USB viewfinder, camera identity, and firmware detection. | Live-view frames verified with an independent macOS PTP probe on firmware 4.0. Galaxy verification pending. |
+| Sony α7 III (ILCE-7M3) | USB PC Remote | USB viewfinder, camera identity, firmware, ISO and recording-state readout, and an idle check before closing the viewfinder for gallery setup. | Live view and idle handoff passed on Galaxy S24 FE with camera firmware 4.0. [Hardware test details](#usb-pc-remote) |
 | Sony α7 III (ILCE-7M3) | USB MTP | Sony documents MTP access to the card in slot 1. | Pending physical USB and independent comparison with a card original. |
 | Sony a6400 | Local Wi-Fi | QR, manual and saved reconnect, catalogue and capture-date browsing, Original/2M/VGA JPEG choices, and verified import. | Pending. Repeat each JPEG option and record model and firmware. |
 | Sony a6400 | USB PC Remote | Candidate for the same Sony USB viewfinder. | Pending physical test. |
 | Sony a6400 | USB MTP | USB discovery, Android’s access prompt, browse and import files the camera exposes. | Pending physical USB and genuine ARW byte comparison against an independent card read. |
 
-Sony USB PC Remote and Sony Wi-Fi media transfer expose separate features. Sony shutter, recording, focus, exposure, and settings controls in Cameraderie remain pending. Each camera family tracks physical support by model, firmware, and transport.
+Sony USB PC Remote and Sony Wi-Fi media transfer expose separate features. Sony shutter, autofocus, recording controls, and exposure changes in Cameraderie remain pending. Each camera family tracks physical support by model, firmware, and transport.
 
 ## Protocol compatibility across models
 
@@ -45,11 +45,13 @@ On 24 November 2026, Cameraderie connected a physical Sony α7 III to a Galaxy S
 
 All three copies retained the capture date. Separate SHA-256 checks of the files in the Cameraderie album matched the completed import receipts. The original JPEG's saved bytes matched the file streamed from the camera. All three copies appeared in the offline Library after disconnecting.
 
-Firmware, RAW, video, USB MTP, and a separate hash of the card original remain to be verified. Sony documents the α7 III’s transfer mode and USB MTP access to the card in slot 1. [Sony Wi-Fi guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001653186.html) · [Sony USB guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
+RAW, video transfer, USB MTP, and a separate hash of the card original remain to be verified. Sony documents the α7 III’s transfer mode and USB MTP access to the card in slot 1. [Sony Wi-Fi guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001653186.html) · [Sony USB guide](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
 
 ### USB PC Remote
 
-The α7 III reported firmware 4.0 in PC Remote mode. An independent macOS Image Capture PTP probe opened the Sony session, read the camera properties, and decoded four 1024 × 576 live-view frames. The camera advertised shutter and focus commands. Command effects and safe recording handoff need separate tests.
+The α7 III reported firmware 4.0 in PC Remote mode. On Galaxy S24 FE running Android 17, Cameraderie received and displayed 1024 × 680 live-view frames over a direct USB data cable. It read the camera’s idle state and the ISO 640 value set on the camera. **Open camera gallery** took the idle session to gallery setup. Returning to the viewfinder and reconnecting on the same cable restored live view.
+
+An independent macOS Image Capture PTP probe also decoded four 1024 × 576 preview frames. Shutter, autofocus, recording commands, and remote ISO changes still need hardware verification.
 
 To try the Android viewfinder, set **Ctrl w/ Smartphone** to **Off** and **USB Connection** to **PC Remote**, then attach the camera to the phone with a data cable. In Cameraderie, open **Sony USB viewfinder** and tap **Connect over USB**. [Sony USB setup](https://helpguide.sony.net/ilc/1720/v1/en/contents/TP0001629775.html)
 

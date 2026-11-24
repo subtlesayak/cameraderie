@@ -27,6 +27,13 @@ internal class PtpDataset(data: ByteArray) {
         if (size < 0 || buffer.remaining() < size) throw IOException("Truncated camera metadata.")
     }
 
+    val remaining: Int get() = buffer.remaining()
+
+    fun u8(): Int {
+        need(1)
+        return buffer.get().toInt() and 255
+    }
+
     fun u16(): Int {
         need(2)
         return buffer.short.toInt() and 65535
@@ -45,8 +52,7 @@ internal class PtpDataset(data: ByteArray) {
     fun optionalString(): String? = if (buffer.hasRemaining()) string().takeIf { it.isNotBlank() } else null
 
     fun string(): String {
-        need(1)
-        val count = buffer.get().toInt() and 255
+        val count = u8()
         if (count == 0) return ""
         need(count * 2)
         val raw = ByteArray(count * 2)

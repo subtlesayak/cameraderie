@@ -8,6 +8,7 @@ import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
+import app.cameraderie.camera.PtpDataset
 import app.cameraderie.camera.PtpDeviceInfo
 import app.cameraderie.camera.UsbPtpTransport
 import java.io.Closeable
@@ -20,11 +21,18 @@ internal class SonyUsbViewfinder private constructor(
     private val connection: UsbDeviceConnection,
     private val link: Interface,
     private val ptp: UsbPtpTransport,
+    private val readsStatus: Boolean,
+    private var initialStatus: SonyUsbStatus?,
 ) : Closeable {
+    fun status(fresh: Boolean = false): SonyUsbStatus {
+        val initial = initialStatus
+        initialStatus = null
+        if (!fresh && initial != null) return initial
+        if (!readsStatus) return SonyUsbStatus.unknown
+        return parseStatus(ptp.command(GET_CAMERA_PROPERTIES, maxData = MAX_PROPERTIES))
+    }
+
     fun frame(): Bitmap? {
-        val objectInfo = ptp.command(GET_OBJECT_INFO, PREVIEW_HANDLE, maxData = 4096)
-        if (objectInfo.code in temporaryPreviewResponses) return null
-        objectInfo.requireOk(GET_OBJECT_INFO)
         val reply = ptp.command(GET_OBJECT, PREVIEW_HANDLE, maxData = 2 * 1024 * 1024)
         if (reply.code in temporaryPreviewResponses) return null
         val data = reply.requireOk(GET_OBJECT).data ?: return null
@@ -57,7 +65,8 @@ internal class SonyUsbViewfinder private constructor(
         private const val SDIO_CONNECT = 0x9201
         private const val SDIO_DEVICE_INFO = 0x9202
         private const val GET_CAMERA_PROPERTIES = 0x9209
-        private const val GET_OBJECT_INFO = 0x1008
+        private const val MAX_PROPERTIES = 64 * 1024
+        private const val SONY_PROPERTY_FORMAT_2 = 200
         private const val GET_OBJECT = 0x1009
         private const val PREVIEW_HANDLE = -16382 // 0xffffc002
         private const val TIMEOUT_MS = 2500
@@ -80,30 +89,40 @@ internal class SonyUsbViewfinder private constructor(
                 // Leave an interface already owned by another app alone.
                 claimed = connection.claimInterface(link.descriptor, false)
                 if (!claimed) throw IOException("USB camera is in use. Close the other camera app, then retry.")
+                ptp.open()
                 val info = UsbPtpTransport.GET_DEVICE_INFO
                 val raw = ptp.command(info, maxData = 64 * 1024).requireOk(info).data
                     ?: throw IOException("USB camera did not identify itself.")
                 val identity = PtpDeviceInfo.parse(raw)
                 val model = SonyCameraIdentity.ptp(identity.manufacturer, identity.model, null)
                     ?: throw IOException("The connected device did not identify itself as a Sony camera.")
-                if (!identity.operations.containsAll(setOf(SDIO_CONNECT, SDIO_DEVICE_INFO, GET_OBJECT_INFO, GET_OBJECT))) {
+                if (!identity.operations.containsAll(setOf(SDIO_CONNECT, SDIO_DEVICE_INFO, GET_OBJECT))) {
                     throw IOException("$model is not in PC Remote mode. Set USB Connection to PC Remote on the camera.")
                 }
-                ptp.open()
                 ptp.command(SDIO_CONNECT, 1, 0, 0, maxData = 4096).requireOk(SDIO_CONNECT)
                 ptp.command(SDIO_CONNECT, 2, 0, 0, maxData = 4096).requireOk(SDIO_CONNECT)
-                ptp.command(SDIO_DEVICE_INFO, 0x12c, 1, maxData = 64 * 1024).requireOk(SDIO_DEVICE_INFO)
+                val extension = ptp.command(SDIO_DEVICE_INFO, 0x12c, 1, maxData = MAX_PROPERTIES)
+                    .requireOk(SDIO_DEVICE_INFO).data
                 ptp.command(SDIO_CONNECT, 3, 0, 0, maxData = 4096).requireOk(SDIO_CONNECT)
-                if (GET_CAMERA_PROPERTIES in identity.operations) {
-                    ptp.command(GET_CAMERA_PROPERTIES, maxData = 64 * 1024)
-                }
-                return SonyUsbViewfinder(model, SonyCameraIdentity.label(identity.version), connection, link, ptp)
+                val hasProperties = GET_CAMERA_PROPERTIES in identity.operations
+                val propertyFormat = extension?.takeIf { it.size >= 2 }?.let { PtpDataset(it).u16() }
+                val readsStatus = hasProperties && propertyFormat == SONY_PROPERTY_FORMAT_2
+                val properties = if (hasProperties) ptp.command(GET_CAMERA_PROPERTIES, maxData = MAX_PROPERTIES) else null
+                return SonyUsbViewfinder(
+                    model, SonyCameraIdentity.label(identity.version), connection, link, ptp,
+                    readsStatus, if (readsStatus && properties != null) parseStatus(properties) else null,
+                )
             } catch (error: Exception) {
                 if (claimed) runCatching { ptp.close() }
                 if (claimed) connection.releaseInterface(link.descriptor)
                 connection.close()
                 throw error
             }
+        }
+
+        private fun parseStatus(reply: UsbPtpTransport.Response): SonyUsbStatus {
+            val data = reply.data
+            return if (reply.code == 0x2001 && data != null) SonyUsbStatus.parse(data) else SonyUsbStatus.unknown
         }
 
         private fun interfaceFor(device: UsbDevice): Interface? {

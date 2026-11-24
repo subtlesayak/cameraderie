@@ -29,7 +29,7 @@ Any camera that implements a protocol supported by Cameraderie should work with 
 | DJI Osmo Action 6 | Bluetooth and local Wi-Fi | Shooting and gallery adapter implemented. Physical verification pending. |
 | DJI Osmo Action 5 Pro, Action 4, Osmo 360 | DJI R SDK over Bluetooth and USB file transfer where offered | Candidates for model-by-model testing. |
 | DJI Osmo Action 3, Osmo Nano | USB file transfer | Candidates for wired transfer testing. |
-| Sony α7 III (ILCE-7M3) | Sony media transfer over local Wi-Fi and USB MTP | Wi-Fi gallery, saved reconnect, and Original/2M/VGA JPEG imports tested on Galaxy S24 FE. USB verification pending. |
+| Sony α7 III (ILCE-7M3) | USB PC Remote, Sony Wi-Fi media transfer, and USB MTP | USB live view and Wi-Fi gallery tested on Galaxy S24 FE. USB MTP verification pending. |
 | Sony a6400 (ILCE-6400) | Sony media transfer over local Wi-Fi and USB MTP | Gallery adapter implemented. Physical verification pending. |
 | Sony a6100 (ILCE-6100), a6600 (ILCE-6600) | Sony media transfer over local Wi-Fi and USB MTP | Candidates for the same media adapter and the general USB path. |
 | Nikon Z6III, Z8 | USB MTP/PTP | Candidates for the general USB path. |
@@ -43,8 +43,8 @@ The USB adapter discovers standard PTP/MTP interfaces across camera brands. Wire
 ## Tested
 
 - **Android device.** 39 native checks passed on an Android 12 emulator. The earlier Galaxy S24 FE build also passed 39 native checks.
-- **Build.** 596 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
-- **Sony α7 III.** On a Galaxy S24 FE running Android 17, Cameraderie connected by Wi-Fi QR, browsed 789 entries, and reconnected from its saved camera entry. Original, 2M, and VGA JPEG imports passed independent saved-file checksum checks. [Hardware test details](docs/COMPATIBILITY.md#sony-α7-iii-hardware-test)
+- **Build.** 599 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
+- **Sony α7 III.** On a Galaxy S24 FE running Android 17, Cameraderie connected by Wi-Fi QR, browsed 789 entries, and reconnected from its saved camera entry. Original, 2M, and VGA JPEG imports passed independent saved-file checksum checks. USB PC Remote displayed live view, reported firmware and ISO, and let us open gallery setup while the camera was idle and reconnect to the viewfinder. [Hardware test details](docs/COMPATIBILITY.md#sony-α7-iii-hardware-test)
 
 ## Get the app
 
