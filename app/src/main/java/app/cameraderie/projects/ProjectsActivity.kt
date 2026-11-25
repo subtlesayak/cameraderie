@@ -107,6 +107,7 @@ class ProjectsActivity : CameraderieActivity() {
         val shoots: List<ProjectShoot>,
         val activeShoot: ProjectShoot?,
         val media: List<ProjectMedia>,
+        val selectedSources: Map<String, String>,
         val exports: List<ImportHistoryEntry>,
         val originals: Map<String, ImportHistoryEntry>,
     )
@@ -129,24 +130,28 @@ class ProjectsActivity : CameraderieActivity() {
         val project = store.project(id) ?: return null
         val shoots = store.shoots(id)
         val activeShoot = shootId?.let { selected -> shoots.firstOrNull { it.id == selected } ?: return null }
-        val media = store.media(id).filter { activeShoot == null || it.shootId == activeShoot.id }
+        val projectMedia = store.media(id)
+        val media = projectMedia.filter { activeShoot == null || it.shootId == activeShoot.id }
+        val selectedSources = projectMedia.filter(ProjectMedia::selectedTake).associate { it.importId to it.sha256 }
         val exports = history.completedProjectExports(id)
             .filter { activeShoot == null || it.draft.projectExport?.shootId == activeShoot.id }
         val originals = history.store.findAll(buildSet {
             media.forEach { add(it.importId) }
             exports.mapNotNull { it.draft.projectExport?.sourceImportId }.forEach(::add)
         })
-        return ProjectDetails(project, shoots, activeShoot, media, exports, originals)
+        return ProjectDetails(project, shoots, activeShoot, media, selectedSources, exports, originals)
     }
 
     private fun showDetails(details: ProjectDetails) {
-        val (project, shoots, activeShoot, media, exports, originals) = details
+        val (project, shoots, activeShoot, media, selectedSources, exports, originals) = details
         val mediaFacts = media.associateWith { item ->
             val entry = originals[item.importId]?.takeIf { ProjectMedia.from(it)?.sha256 == item.sha256 }
-            MediaFacets.from(entry, item.name, setOfNotNull(item.shootId))
+            MediaFacets.from(entry, item.name, setOfNotNull(item.shootId)).copy(selectedTake = item.selectedTake)
         }
         val exportFacts = exports.associateWith {
-            MediaFacets.forExport(it, originals, setOfNotNull(it.draft.projectExport?.shootId))
+            val origin = checkNotNull(it.draft.projectExport)
+            MediaFacets.forExport(it, originals, setOfNotNull(origin.shootId))
+                .copy(selectedTake = selectedSources[origin.sourceImportId] == origin.sourceSha256)
         }
         val visibleMedia = media.filter { filters.matches(mediaFacts.getValue(it)) }
         val visibleExports = exports.filter { filters.matches(exportFacts.getValue(it)) }
@@ -160,7 +165,7 @@ class ProjectsActivity : CameraderieActivity() {
         val shootNames = if (activeShoot == null) shoots.associate { it.id to it.name } else null
         val label = if (filters.count == 0) "Filter media" else "Filter media (${filters.count})"
         toolbar.menu.add(label).setOnMenuItemClickListener {
-            MediaFilterDialog.show(this, mediaFacts.values + exportFacts.values, shootNames, filters) {
+            MediaFilterDialog.show(this, mediaFacts.values + exportFacts.values, shootNames, filters, showTakeFilter = true) {
                 filters = it
                 message = ""
                 showDetails(details)
@@ -199,7 +204,7 @@ class ProjectsActivity : CameraderieActivity() {
             if (media.isNotEmpty()) {
                 add(Row("Project media"))
                 addAll(media.map { item ->
-                    Row("${item.name}\n${names[item.shootId] ?: "Unassigned"}") {
+                    Row(mediaLabel(item, names[item.shootId] ?: "Unassigned")) {
                         showMediaActions(project.id, item, shoots)
                     }
                 })
@@ -227,7 +232,12 @@ class ProjectsActivity : CameraderieActivity() {
         ui.add(header, ui.action("Add from Library", primary = true, onClick = ::pickMedia))
         showNotes(shoot.notes)
         showStatus(media.size, filterStatus)
-        setRows(media.map { item -> Row(item.name) { showMediaActions(project.id, item, shoots) } } + exportRows(exports))
+        setRows(media.map { item -> Row(mediaLabel(item)) { showMediaActions(project.id, item, shoots) } } + exportRows(exports))
+    }
+
+    private fun mediaLabel(item: ProjectMedia, shoot: String? = null): String {
+        val details = listOfNotNull(shoot, "Selected take".takeIf { item.selectedTake })
+        return if (details.isEmpty()) item.name else item.name + "\n" + details.joinToString(" · ")
     }
 
     private fun exportRows(exports: List<ImportHistoryEntry>, shootNames: Map<String, String>? = null): List<Row> {
@@ -322,11 +332,19 @@ class ProjectsActivity : CameraderieActivity() {
             val dialog = builder.create()
             val items = ui.column().apply { setPadding(ui.dp(20), ui.dp(8), ui.dp(20), ui.dp(8)) }
             if (entry == null) ui.add(items, ui.text("The original Library receipt is unavailable."))
+            val selected = !media.selectedTake
+            ui.add(items, ui.action(if (selected) "Mark as selected take" else "Unmark selected take") {
+                dialog.dismiss()
+                work({ store.setSelectedTake(id, media.importId, selected) }) {
+                    message = if (selected) "Take selected." else "Take unmarked."
+                    load()
+                }
+            })
             if (shoots.isNotEmpty()) ui.add(items, ui.action("Move to shoot") {
                 dialog.dismiss()
                 chooseShoot(id, media, shoots)
             })
-            if (items.childCount > 0) dialog.setView(items)
+            dialog.setView(items)
             SonyScreenWindows.showMedia(dialog, this)
         }
     }

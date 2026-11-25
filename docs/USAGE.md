@@ -29,9 +29,10 @@ Choose the adapter in Cameraderie and follow its pairing or connection prompt. T
 1. Open **Projects** and create a project. Use **New shoot** for a day, location, or sequence. Project and shoot notes are saved on the phone.
 2. Use **Add from Library** to choose verified imports. Add files from the project view to keep them unassigned, or add them inside a shoot to assign them there. Camera originals, audio, and GPX tracks can share a shoot.
 3. Tap a project file and choose **Move to shoot** to change its assignment. Use the shoot’s menu to edit its notes or move it earlier or later in the project.
-4. Tap a file to open it or edit a supported original video. An MP4 exported from a project appears under **Exports** in the source shoot and in Library. Tap the export to open it or return to the verified original. Pausing and resuming preserves the project association.
+4. Tap a file and choose **Mark as selected take**. The mark is saved in the project and follows the file when you move it to another shoot.
+5. Tap a file to open it or edit a supported original video. An MP4 exported from a project appears under **Exports** in the source shoot and in Library. Tap the export to open it or return to the verified original. Pausing and resuming preserves the project association.
 
-Choose **Filter media** from the menu in Library, Projects, or a shoot. Combine camera, capture date, and file format. Library and the project overview also let you choose a shoot or **Unassigned**. Exports use the camera and capture date from their verified source when available. Earlier imports with missing metadata appear under **Camera not recorded** or **Capture date not recorded**.
+Choose **Filter media** from the menu in Library, Projects, or a shoot. Combine camera, capture date, and file format. Library and the project overview also let you choose a shoot or **Unassigned**. In a project or shoot, **Selected takes only** shows marked originals and their linked exports. Exports use the camera and capture date from their verified source when available. Earlier imports with missing metadata appear under **Camera not recorded** or **Capture date not recorded**.
 
 The [Himalayan Diaries example](WORKFLOW.md#himalayan-diaries) shows how to organize media from several cameras in one project.
 

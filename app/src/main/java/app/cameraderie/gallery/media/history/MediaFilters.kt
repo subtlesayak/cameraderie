@@ -3,6 +3,7 @@ package app.cameraderie.gallery.media.history
 import android.content.Context
 import android.os.Bundle
 import android.view.View
+import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Spinner
@@ -22,6 +23,7 @@ internal data class MediaFacets(
     val extension: String?,
     val group: MediaGroup?,
     val shootIds: Set<String>,
+    val selectedTake: Boolean = false,
 ) {
     val cameraKey: String get() = camera?.lowercase(Locale.ROOT).orEmpty()
 
@@ -64,13 +66,15 @@ internal data class MediaFilters(
     val date: String? = null,
     val format: String? = null,
     val shoot: String? = null,
+    val selectedTakesOnly: Boolean = false,
 ) {
-    val count get() = listOf(camera, date, format, shoot).count { it != null }
+    val count get() = listOf(camera, date, format, shoot).count { it != null } + if (selectedTakesOnly) 1 else 0
 
     fun matches(facts: MediaFacets): Boolean =
         (camera == null || camera == facts.cameraKey) &&
             (date == null || date == facts.captureDate.orEmpty()) &&
             (format == null || format == facts.extension || format == facts.group?.let(::groupKey)) &&
+            (!selectedTakesOnly || facts.selectedTake) &&
             when (shoot) {
                 null -> true
                 "" -> facts.shootIds.isEmpty()
@@ -82,6 +86,7 @@ internal data class MediaFilters(
         putString("captureDate", date)
         putString("format", format)
         putString("shoot", shoot)
+        putBoolean("selectedTakesOnly", selectedTakesOnly)
     }
 
     companion object {
@@ -89,7 +94,7 @@ internal data class MediaFilters(
 
         fun restore(bundle: Bundle?): MediaFilters = MediaFilters(
             bundle?.getString("camera"), bundle?.getString("captureDate"),
-            bundle?.getString("format"), bundle?.getString("shoot"),
+            bundle?.getString("format"), bundle?.getString("shoot"), bundle?.getBoolean("selectedTakesOnly") == true,
         )
     }
 }
@@ -99,7 +104,7 @@ internal object MediaFilterDialog {
 
     fun show(
         context: Context, facts: Collection<MediaFacets>, shoots: Map<String, String>?,
-        selected: MediaFilters, apply: (MediaFilters) -> Unit,
+        selected: MediaFilters, showTakeFilter: Boolean = false, apply: (MediaFilters) -> Unit,
     ) {
         val ui = UiKit(context)
         val fields = ui.column().apply { setPadding(ui.dp(20), 0, ui.dp(20), ui.dp(6)) }
@@ -119,11 +124,18 @@ internal object MediaFilterDialog {
                 missing(facts.any { it.shootIds.isEmpty() }, "Unassigned")
             picker(context, ui, fields, "Shoot", "All shoots", options, selected.shoot)
         }
+        val takes = if (showTakeFilter) CheckBox(context).apply {
+            text = "Selected takes only"
+            isChecked = selected.selectedTakesOnly
+            minHeight = ui.dp(48)
+        }.also { ui.add(fields, it, 10) } else null
         val dialog = MaterialAlertDialogBuilder(context).setTitle("Filter media")
             .setView(ScrollView(context).apply { addView(fields) })
             .setNegativeButton("Cancel", null)
             .setNeutralButton("Clear filters") { _, _ -> apply(MediaFilters()) }
-            .setPositiveButton("Apply filters") { _, _ -> apply(MediaFilters(camera(), date(), format(), shoot?.invoke())) }
+            .setPositiveButton("Apply filters") { _, _ ->
+                apply(MediaFilters(camera(), date(), format(), shoot?.invoke(), takes?.isChecked == true))
+            }
             .create()
         SonyScreenWindows.showMedia(dialog, context)
     }

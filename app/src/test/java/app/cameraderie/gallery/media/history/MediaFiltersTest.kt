@@ -18,6 +18,11 @@ class MediaFiltersTest {
         assertFalse(filters.copy(date = "2026-11-25").matches(facets))
         assertFalse(filters.copy(format = "MP4").matches(facets))
         assertFalse(filters.copy(shoot = "day-two").matches(facets))
+        val selected = filters.copy(selectedTakesOnly = true)
+        assertEquals(5, selected.count)
+        assertFalse(selected.matches(facets))
+        assertTrue(selected.matches(facets.copy(selectedTake = true)))
+        assertFalse(selected.matches(facets.copy(selectedTake = true, shootIds = setOf("day-two"))))
     }
 
     @Test fun unknownsCanBeSelectedAndOpaque360FilesStayFindableByFormat() {

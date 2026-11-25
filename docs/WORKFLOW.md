@@ -38,4 +38,8 @@ The audio, track, and Insta360 file acceptance used synthetic WAV, GPX, INSV, an
 
 The filter check used the verified Sony a6400 JPEG and DJI Osmo Action 6 MP4 imported through Android’s file picker. The app recorded each camera and capture date from the file. With networking off after a cold restart, the Sony JPEG appeared in Day 1 and the Action 6 clip in Day 2. Combining camera, capture date, format, and shoot in the project showed only the matching clip. The Day 2 shoot and the Library shoot filter also returned that clip. Independent readback confirmed both saved files matched their original bytes and SHA-256 receipts.
 
+The selected-take check upgraded the same Malaysian Diaries project in place. Both camera originals stayed marked after an offline restart. The Sony JPEG moved from Day 1 to Day 2 and back with the same filename, SHA-256, and Library receipt. Day 1 also reopened with a published 828-point GPX track, and Day 2 with a WAV derived from the Action 6 recording. The imported WAV and GPX matched their source files byte for byte. [GPX sample publisher](https://www.360camsters.com/360-cameras/insta360-x4/)
+
+In Day 2, a marked synthetic clip was shortened in the editor and exported as a separate AVC/AAC MP4. **Selected takes only** displayed both the marked clip and its linked export after an offline restart. Independent readback decoded the export, matched its SHA-256 receipt, and verified the exact original receipt and shoot in the export’s metadata.
+
 See the [user guide](USAGE.md) for workflows available in the app and the [compatibility matrix](COMPATIBILITY.md) for connection and hardware test results.

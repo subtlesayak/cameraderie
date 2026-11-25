@@ -22,7 +22,13 @@ internal data class LibraryShoot(
     val sha256: String?,
 )
 
-internal data class ProjectMedia(val importId: String, val sha256: String, val name: String, val shootId: String? = null) {
+internal data class ProjectMedia(
+    val importId: String,
+    val sha256: String,
+    val name: String,
+    val shootId: String? = null,
+    val selectedTake: Boolean = false,
+) {
     companion object {
         fun from(entry: ImportHistoryEntry): ProjectMedia? {
             val receipt = entry.receipt ?: return null
@@ -35,7 +41,7 @@ internal data class ProjectMedia(val importId: String, val sha256: String, val n
 
 /** A project references completed receipts. The Library keeps ownership of the media bytes. */
 internal class ProjectStore(context: Context, name: String = "projects.db") : Closeable {
-    private val helper = object : SQLiteOpenHelper(context.applicationContext, name, null, 2) {
+    private val helper = object : SQLiteOpenHelper(context.applicationContext, name, null, 3) {
         override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
 
         override fun onCreate(db: SQLiteDatabase) {
@@ -45,14 +51,16 @@ internal class ProjectStore(context: Context, name: String = "projects.db") : Cl
             db.execSQL("""CREATE TABLE project_media (
                 project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 import_id TEXT NOT NULL, sha256 TEXT NOT NULL, name TEXT NOT NULL,
+                selected_take INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY(project_id, import_id), UNIQUE(project_id, sha256)
             )""")
             createShoots(db)
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            check(oldVersion == 1 && newVersion == 2)
-            createShoots(db)
+            check(oldVersion in 1..2 && newVersion == 3)
+            if (oldVersion == 1) createShoots(db)
+            db.execSQL("ALTER TABLE project_media ADD COLUMN selected_take INTEGER NOT NULL DEFAULT 0")
         }
 
         private fun createShoots(db: SQLiteDatabase) {
@@ -149,11 +157,11 @@ internal class ProjectStore(context: Context, name: String = "projects.db") : Cl
     }
 
     fun media(id: String): List<ProjectMedia> = helper.readableDatabase.rawQuery(
-        """SELECT m.import_id, m.sha256, m.name, s.shoot_id FROM project_media m
+        """SELECT m.import_id, m.sha256, m.name, s.shoot_id, m.selected_take FROM project_media m
             LEFT JOIN shoot_media s ON s.project_id=m.project_id AND s.import_id=m.import_id
             WHERE m.project_id=? ORDER BY m.rowid""",
         arrayOf(id),
-    ).use { readRows(it) { ProjectMedia(getString(0), getString(1), getString(2), getString(3)) } }
+    ).use { readRows(it) { ProjectMedia(getString(0), getString(1), getString(2), getString(3), getInt(4) != 0) } }
 
     fun libraryShoots(): List<LibraryShoot> = helper.readableDatabase.rawQuery(
         """SELECT s.id, p.name, s.name, m.import_id, m.sha256 FROM projects p
@@ -241,6 +249,19 @@ internal class ProjectStore(context: Context, name: String = "projects.db") : Cl
             put("shoot_id", shootId)
         }
         return db.insertWithOnConflict("shoot_media", null, values, conflict) != -1L
+    }
+
+    fun setSelectedTake(projectId: String, importId: String, selected: Boolean) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            val value = if (selected) 1 else 0
+            val values = ContentValues().apply { put("selected_take", value) }
+            val changed = db.update("project_media", values, "project_id=? AND import_id=? AND selected_take<>?",
+                arrayOf(projectId, importId, value.toString()))
+            if (changed > 0) touch(db, projectId)
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
     }
 
     fun removeMedia(id: String, importId: String) {

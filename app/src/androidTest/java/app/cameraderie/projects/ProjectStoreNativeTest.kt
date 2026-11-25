@@ -10,7 +10,9 @@ import app.cameraderie.gallery.media.history.ImportHistoryStage
 import app.cameraderie.gallery.media.history.ImportProvenance
 import app.cameraderie.gallery.media.history.SqliteImportHistoryStore
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.util.UUID
@@ -31,19 +33,24 @@ class ProjectStoreNativeTest {
                 val noHash = fixture(6, "old.JPG", "image/jpeg", null, null)
                 assertEquals(3, store.addMedia(id, listOf(photo, copy, video, audio, unfinished, noHash)))
                 assertEquals(0, store.addMedia(id, listOf(video, photo)))
-                assertEquals(1, store.addMedia(other, listOf(copy)))
+                assertEquals(1, store.addMedia(other, listOf(photo)))
+                store.setSelectedTake(id, photo.draft.id, true)
+                assertFalse(store.media(other).single().selectedTake)
                 store.update(id, "Himalayan Diaries", "Use the wide take.")
                 id
             }
             ProjectStore(context, db).use { store ->
                 assertEquals("Use the wide take.", store.project(projectId)?.notes)
                 assertEquals(3, store.project(projectId)?.mediaCount)
-                assertEquals(listOf(photo, video, audio).map { ProjectMedia.from(it) }, store.media(projectId))
+                assertEquals(listOf(ProjectMedia.from(photo)?.copy(selectedTake = true),
+                    ProjectMedia.from(video), ProjectMedia.from(audio)), store.media(projectId))
+                store.setSelectedTake(projectId, photo.draft.id, false)
                 store.removeMedia(projectId, video.draft.id)
             }
             ProjectStore(context, db).use { store ->
                 assertEquals(listOf(photo.draft.id, audio.draft.id), store.media(projectId).map(ProjectMedia::importId))
                 assertEquals(2, store.project(projectId)?.mediaCount)
+                assertFalse(store.media(projectId).first().selectedTake)
                 assertEquals(1, store.projects().single { it.name == "Other project" }.mediaCount)
             }
         } finally { context.deleteDatabase(db) }
@@ -71,6 +78,7 @@ class ProjectStoreNativeTest {
                 assertEquals(3, store.addMedia(project, listOf(alternatePhoto, clip, audio), departure))
                 assertEquals(0, store.addMedia(project, listOf(photo), pass))
                 assertThrows(IllegalStateException::class.java) { store.moveMedia(project, photo.draft.id, otherShoot) }
+                store.setSelectedTake(project, photo.draft.id, true)
                 store.moveMedia(project, photo.draft.id, pass)
                 store.moveMedia(project, video.draft.id, pass)
                 store.updateShoot(project, pass, "Day 2 · Mountain pass", "Use the wide take.")
@@ -81,7 +89,7 @@ class ProjectStoreNativeTest {
                 assertEquals(listOf(2, 2), store.shoots(project).map(ProjectShoot::mediaCount))
                 assertEquals("Use the wide take.", store.shoots(project).first().notes)
                 val moved = store.media(project).first()
-                assertEquals(ProjectMedia.from(photo), moved.copy(shootId = null))
+                assertEquals(ProjectMedia.from(photo)?.copy(selectedTake = true), moved.copy(shootId = null))
                 assertEquals(pass, moved.shootId)
                 assertEquals(4, store.project(project)?.mediaCount)
                 val library = store.libraryShoots()
@@ -94,15 +102,20 @@ class ProjectStoreNativeTest {
                 assertEquals("Other project · Unit A", library.single { it.importId == null }.label)
                 store.moveMedia(project, photo.draft.id, null)
                 assertNull(store.media(project).first().shootId)
+                assertTrue(store.media(project).first().selectedTake)
                 store.removeMedia(project, video.draft.id)
                 assertEquals(0, store.shoots(project).first().mediaCount)
             }
         } finally { context.deleteDatabase(db) }
     }
 
-    @Test fun growsVersionOneProjectsWithoutChangingTheirReferences() {
+    @Test fun growsVersionOneProjectsWithoutChangingTheirReferences() = verifyUpgrade(1)
+
+    @Test fun growsVersionTwoProjectsWithoutChangingShootAssignments() = verifyUpgrade(2)
+
+    private fun verifyUpgrade(version: Int) {
         val context = NativeChecks.instance.targetContext
-        val db = "projects-v1-test-${UUID.randomUUID()}.db"
+        val db = "projects-v$version-test-${UUID.randomUUID()}.db"
         try {
             val file = context.getDatabasePath(db)
             file.parentFile?.mkdirs()
@@ -115,16 +128,33 @@ class ProjectStoreNativeTest {
                     PRIMARY KEY(project_id, import_id), UNIQUE(project_id, sha256))""")
                 legacy.execSQL("INSERT INTO projects VALUES ('existing', 'Earlier project', 'Saved notes', 1)")
                 legacy.execSQL("INSERT INTO project_media VALUES ('existing', 'saved', ?, 'ridge.jpg')", arrayOf("a".repeat(64)))
-                legacy.version = 1
+                if (version == 2) {
+                    legacy.execSQL("""CREATE TABLE project_shoots (
+                        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                        id TEXT NOT NULL, name TEXT NOT NULL, notes TEXT NOT NULL, position INTEGER NOT NULL,
+                        PRIMARY KEY(project_id, id))""")
+                    legacy.execSQL("""CREATE TABLE shoot_media (
+                        project_id TEXT NOT NULL, import_id TEXT NOT NULL, shoot_id TEXT NOT NULL,
+                        PRIMARY KEY(project_id, import_id),
+                        FOREIGN KEY(project_id, import_id) REFERENCES project_media(project_id, import_id) ON DELETE CASCADE,
+                        FOREIGN KEY(project_id, shoot_id) REFERENCES project_shoots(project_id, id) ON DELETE CASCADE)""")
+                    legacy.execSQL("CREATE INDEX shoot_media_by_shoot ON shoot_media(project_id, shoot_id)")
+                    legacy.execSQL("INSERT INTO project_shoots VALUES ('existing', 'day-two', 'Day 2', 'Windy', 0)")
+                    legacy.execSQL("INSERT INTO shoot_media VALUES ('existing', 'saved', 'day-two')")
+                }
+                legacy.version = version
             }
             ProjectStore(context, db).use { upgraded ->
                 assertEquals(Project("existing", "Earlier project", "Saved notes", 1), upgraded.project("existing"))
-                assertEquals(emptyList<ProjectShoot>(), upgraded.shoots("existing"))
-                val original = ProjectMedia("saved", "a".repeat(64), "ridge.jpg")
+                val previousShoot = "day-two".takeIf { version == 2 }
+                assertEquals(listOfNotNull(previousShoot?.let { ProjectShoot(it, "Day 2", "Windy", 1) }),
+                    upgraded.shoots("existing"))
+                val original = ProjectMedia("saved", "a".repeat(64), "ridge.jpg", shootId = previousShoot)
                 assertEquals(listOf(original), upgraded.media("existing"))
                 val shoot = upgraded.createShoot("existing", "Day 1", "")
+                upgraded.setSelectedTake("existing", "saved", true)
                 upgraded.moveMedia("existing", "saved", shoot)
-                assertEquals(listOf(original.copy(shootId = shoot)), upgraded.media("existing"))
+                assertEquals(listOf(original.copy(shootId = shoot, selectedTake = true)), upgraded.media("existing"))
             }
         } finally { context.deleteDatabase(db) }
     }
