@@ -51,7 +51,7 @@ class DocumentImportActivity : CameraderieActivity() {
         })
         val (page, body) = ui.page()
         root.addView(page)
-        val card = ui.card(body, "Photos and videos")
+        val card = ui.card(body, "Source files")
         ui.add(card, ui.text("Choose files from Android storage or an attached SD reader. Verified copies appear in Library.", secondary = true))
         val choose = ui.action("Choose files") {
             try {
@@ -71,7 +71,7 @@ class DocumentImportActivity : CameraderieActivity() {
         ui.row(card, choose, chooseFolder)
         val status = ui.text("", secondary = true).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
         ui.add(card, status, 12)
-        val start = ui.action("Import to phone album", primary = true) { model.start() }
+        val start = ui.action("Import to phone", primary = true) { model.start() }
         val toFolder = ui.action("Import to folder") {
             try { destinationPicker.launch(null) }
             catch (_: ActivityNotFoundException) {
@@ -105,7 +105,7 @@ internal class DocumentImportModel(application: Application) : AndroidViewModel(
         if (state.value?.busy == true) return
         val unique = files.distinct()
         state.value = when {
-            unique.isEmpty() -> State(message = "This folder has no supported photos or videos.")
+            unique.isEmpty() -> State(message = "This folder has no supported files.")
             unique.size > DocumentAlbumImport.MAX_SELECTION -> State(message = "Choose up to ${DocumentAlbumImport.MAX_SELECTION} files at a time.")
             else -> selection(unique)
         }
@@ -114,13 +114,13 @@ internal class DocumentImportModel(application: Application) : AndroidViewModel(
     fun selectFolder(folder: Uri) {
         if (state.value?.busy == true) return
         cancelled.set(false)
-        state.value = State(busy = true, message = "Looking for photos and videos in the folder…", scanning = true)
+        state.value = State(busy = true, message = "Looking for supported files in the folder…", scanning = true)
         worker.execute {
             val result = try {
                 val app = getApplication<Application>()
                 val files = DocumentFolder.list(app.contentResolver, folder, cancelled::get)
                 if (cancelled.get()) State(message = "Folder scan canceled.")
-                else if (files.isEmpty()) State(message = "This folder has no supported photos or videos.")
+                else if (files.isEmpty()) State(message = "This folder has no supported files.")
                 else selection(files)
             } catch (_: DocumentFolder.TooLarge) {
                 State(message = "This folder is too large to import together. Choose a smaller folder or select individual files.")

@@ -9,6 +9,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import app.cameraderie.gallery.media.AlbumMediaFile
 import app.cameraderie.gallery.media.LocalMediaShare
 import app.cameraderie.gallery.media.FolderImportOutput
 import app.cameraderie.gallery.media.VerifiedMediaShare
@@ -18,9 +19,11 @@ import java.io.IOException
 
 /** The history screen can inspect/open local imports without camera ownership,
  * storage permissions for unrelated media, or any radio/network connection. */
-class LocalImportedMedia(context:Context,private val album:String=SonyImportPlan.ALBUM) {
+class LocalImportedMedia(context:Context,album:String=SonyImportPlan.ALBUM) {
     private val app=context.applicationContext
     private val resolver get()=app.contentResolver
+    private val directories = if (album == SonyImportPlan.ALBUM) listOf(album, AlbumMediaFile.DOWNLOAD_DIRECTORY) else listOf(album)
+    private val directoryScope = "${MediaStore.MediaColumns.RELATIVE_PATH} IN (${directories.joinToString { "?" }})"
     data class Snapshot(val uri:String,val name:String,val mime:String,val bytes:Long,
         val owned:Boolean,val inAlbum:Boolean,val pending:Boolean,val width:Int?,val height:Int?,
         val dateTaken:Long?,val dateAdded:Long?,val dateModified:Long?) {
@@ -39,7 +42,7 @@ class LocalImportedMedia(context:Context,private val album:String=SonyImportPlan
         val w=long(c,MediaStore.MediaColumns.WIDTH)?.takeIf { it<=Int.MAX_VALUE }?.toInt()
         val h=long(c,MediaStore.MediaColumns.HEIGHT)?.takeIf { it<=Int.MAX_VALUE }?.toInt()
         return Snapshot(uri,text(MediaStore.MediaColumns.DISPLAY_NAME),text(MediaStore.MediaColumns.MIME_TYPE),c.getLong(c.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
-            text(MediaStore.MediaColumns.OWNER_PACKAGE_NAME)==app.packageName,text(MediaStore.MediaColumns.RELATIVE_PATH)==album,
+            text(MediaStore.MediaColumns.OWNER_PACKAGE_NAME)==app.packageName,text(MediaStore.MediaColumns.RELATIVE_PATH) in directories,
             c.getInt(c.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING))!=0,if(w!=null && h!=null)w else null,if(w!=null && h!=null)h else null,
             long(c,MediaStore.Images.ImageColumns.DATE_TAKEN),long(c,MediaStore.MediaColumns.DATE_ADDED)?.let { Math.multiplyExact(it,1000L) },long(c,MediaStore.MediaColumns.DATE_MODIFIED))
     }
@@ -84,10 +87,10 @@ class LocalImportedMedia(context:Context,private val album:String=SonyImportPlan
     fun removePending(value:String):Boolean {
         check(!LocalMediaIdentity.isFolderDocument(value) && !LocalMediaIdentity.isFolderReservation(value))
         LocalMediaIdentity.key(value)
-        val where="${MediaStore.MediaColumns.IS_PENDING}=1 AND ${MediaStore.MediaColumns.RELATIVE_PATH}=? AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME}=?"
+        val where="${MediaStore.MediaColumns.IS_PENDING}=1 AND $directoryScope AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME}=?"
         // A no-match guard may throw on newer providers. Successful readback
         // still must establish absence; a published/unknown row stays retained.
-        val deleted=try { resolver.delete(Uri.parse(value),where,arrayOf(album,app.packageName)) } catch(_:SecurityException) { 0 }
+        val deleted=try { resolver.delete(Uri.parse(value),where,(directories + app.packageName).toTypedArray()) } catch(_:SecurityException) { 0 }
         check(deleted in 0..1)
         return deleted==1 || snapshot(value)==null
     }
@@ -95,14 +98,17 @@ class LocalImportedMedia(context:Context,private val album:String=SonyImportPlan
         val collection=MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val args=Bundle().apply {
             putInt(MediaStore.QUERY_ARG_MATCH_PENDING,MediaStore.MATCH_INCLUDE)
-            putString(ContentResolver.QUERY_ARG_SQL_SELECTION,"${MediaStore.MediaColumns.IS_PENDING}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=? AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME}=?")
-            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,arrayOf(if(pending)"1" else "0",album,app.packageName))
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION,"${MediaStore.MediaColumns.IS_PENDING}=? AND $directoryScope AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME}=?")
+            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,(listOf(if (pending) "1" else "0") + directories + app.packageName).toTypedArray())
         }
         (resolver.query(collection,columns,args,null) ?: throw IOException("Local media provider unavailable")).use { cursor ->
             while(cursor.moveToNext()) {
                 if(cancelled())throw java.io.InterruptedIOException()
                 val id=cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID));check(id>0)
-                val item=read(cursor,ContentUris.withAppendedId(collection,id).toString())
+                val relativePath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH))
+                val sourceCollection = if (relativePath == AlbumMediaFile.DOWNLOAD_DIRECTORY)
+                    MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) else collection
+                val item = read(cursor, ContentUris.withAppendedId(sourceCollection, id).toString())
                 if(item.owned && item.inAlbum && item.pending==pending)block(item)
             }
         }

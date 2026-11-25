@@ -33,6 +33,7 @@ class NativeChecks:Instrumentation() {
         } else if (exportResumeProbe != null) {
             JUnitCore.runClasses(app.cameraderie.gallery.media.edit.ExportResumeProbe::class.java)
         } else JUnitCore.runClasses(app.cameraderie.sony.SonyMediaNativeTest::class.java,
+            app.cameraderie.gallery.media.DocumentAlbumImportNativeTest::class.java,
             app.cameraderie.gallery.media.GalleryQueueJournalTest::class.java,
             app.cameraderie.gallery.media.GalleryQueueNotificationTest::class.java,
             app.cameraderie.gallery.media.history.ImportHistoryMigrationTest::class.java,

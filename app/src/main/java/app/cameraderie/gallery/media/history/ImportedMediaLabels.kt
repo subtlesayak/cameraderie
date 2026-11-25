@@ -54,7 +54,9 @@ object ImportedMediaLabels {
         return if(entry.draft.requestedQuality=="ORIGINAL_JPEG") "Original JPEG · offered file" else "Camera file · unchanged"
     }
     fun destination(entry:ImportHistoryEntry):String {
-        val folder=entry.draft.folderTree ?: return "Phone album"
+        val folder = entry.draft.folderTree ?: return if (
+            entry.draft.uri.startsWith("content://media/external_primary/downloads/")
+        ) "Downloads · Cameraderie" else "Phone album"
         val documentId=java.net.URI(folder).path.removePrefix("/tree/")
         val name=documentId.substringAfter(':', "").trimEnd('/').substringAfterLast('/')
         return if(name.isBlank()) "Selected folder" else "Folder · $name"

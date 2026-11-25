@@ -34,4 +34,6 @@ A follow-up used a saved Sony a6400 JPEG identified by EXIF and an Action 6 MP4 
 
 For the linked-export check, a synthetic video was trimmed and exported as a separate H.264 MP4 from **Day 2 · Mountain pass**. After an offline process restart, the shoot listed the export and its original. Independent readback decoded the export, matched its SHA-256 receipt, and confirmed the source file and original receipt were unchanged.
 
+The audio, track, and Insta360 file acceptance used synthetic WAV, GPX, INSV, and INSP fixtures on Android 12. The native test verified the saved bytes, filenames, duplicate detection, and persistence of the shoot assignments after reopening the project database. A separate file-picker run imported WAV, GPX, and INSV together from one folder. Physical X4 card and USB import and 360° playback remain to be verified.
+
 See the [user guide](USAGE.md) for workflows available in the app and the [compatibility matrix](COMPATIBILITY.md) for connection and hardware test results.

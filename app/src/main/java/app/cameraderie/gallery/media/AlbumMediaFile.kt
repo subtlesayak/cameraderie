@@ -3,7 +3,11 @@ package app.cameraderie.gallery.media
 import java.util.Locale
 
 internal data class AlbumMediaFile(val name: String, val mime: String, val video: Boolean, val raw: Boolean) {
+    val image: Boolean get() = mime.startsWith("image/")
+
     companion object {
+        const val DOWNLOAD_DIRECTORY = "Download/Cameraderie/"
+
         private val rawTypes = mapOf(
             "dng" to "image/x-adobe-dng", "arw" to "image/x-sony-arw",
             "cr2" to "image/x-canon-cr2", "cr3" to "image/x-canon-cr3",
@@ -17,6 +21,9 @@ internal data class AlbumMediaFile(val name: String, val mime: String, val video
             "heic" to "image/heic", "heif" to "image/heif", "webp" to "image/webp",
             "tif" to "image/tiff", "tiff" to "image/tiff", "avif" to "image/avif",
             "mp4" to "video/mp4", "mov" to "video/quicktime", "mts" to "video/mp2ts", "m2ts" to "video/mp2ts",
+            "wav" to "audio/wav", "m4a" to "audio/mp4", "mp3" to "audio/mpeg", "flac" to "audio/flac",
+            "gpx" to "application/gpx+xml",
+            "insv" to "application/octet-stream", "insp" to "application/octet-stream",
         ) + rawTypes
 
         fun document(displayName: String): AlbumMediaFile? {

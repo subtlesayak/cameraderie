@@ -17,10 +17,12 @@ import java.io.OutputStream
 import java.security.MessageDigest
 import java.util.UUID
 
-internal class DocumentAlbumImport(context: Context) {
+internal class DocumentAlbumImport(
+    context: Context,
+    private val history: ImportHistoryRepository = ImportHistoryRepository.get(context),
+) {
     private val app = context.applicationContext
     private val resolver = app.contentResolver
-    private val history = ImportHistoryRepository.get(app)
     private val scratch = File(app.noBackupFilesDir, "document-imports")
 
     data class Summary(
@@ -125,7 +127,7 @@ internal class DocumentAlbumImport(context: Context) {
         cancelled: () -> Boolean): MediaImportTransaction.Result {
         val sourceId = sha256().digest(source.toString().toByteArray()).hex()
         val item = MediaImportTransaction.Item(sourceId, file.name, copied.bytes)
-        val port = SonyMediaStore(app).port(
+        val port = SonyMediaStore(app, history).port(
             copy = { _, destination ->
                 checkNotNull(resolver.openOutputStream(destination, "w")).use { output ->
                     staged.inputStream().use { input -> transfer(input, output, copied.bytes, cancelled) }

@@ -3,10 +3,10 @@
 ## Import files
 
 1. Open **Import from files or a memory card**. Choose individual files or a source folder from Android’s picker.
-2. Choose **Import to phone album** to save to `DCIM/Cameraderie`, or **Import to folder** to grant access to a destination.
+2. Choose **Import to phone** to save photos and videos in `DCIM/Cameraderie` and other supported files in `Download/Cameraderie`. Use **Import to folder** to pick a destination.
 3. Open **Library** to see the saved copy, capture information, and import receipt. Use **Share** to send selected files through Android.
 
-File import works independently of camera brand. Supported files include JPEG, HEIF, TIFF, common camera RAW formats, and MP4, MOV, and AVCHD video. Thumbnail and playback support depend on the file format and the phone.
+File import works independently of camera brand. Supported files include JPEG, HEIF, TIFF, common camera RAW formats, and MP4, MOV, and AVCHD video. You can also save WAV, M4A, MP3, and FLAC audio, GPX tracks, and Insta360 INSV and INSP files. INSV and INSP are preserved for use in compatible software. Thumbnail and playback support depend on the file format and the phone.
 
 ## Connect directly to a camera
 
@@ -27,7 +27,7 @@ Choose the adapter in Cameraderie and follow its pairing or connection prompt. T
 ## Organize a project
 
 1. Open **Projects** and create a project. Use **New shoot** for a day, location, or sequence. Project and shoot notes are saved on the phone.
-2. Use **Add from Library** to choose verified imports. Add files from the project view to keep them unassigned, or add them inside a shoot to assign them there.
+2. Use **Add from Library** to choose verified imports. Add files from the project view to keep them unassigned, or add them inside a shoot to assign them there. Camera originals, audio, and GPX tracks can share a shoot.
 3. Tap a project file and choose **Move to shoot** to change its assignment. Use the shoot’s menu to edit its notes or move it earlier or later in the project.
 4. Tap a file to open it or edit a supported original video. An MP4 exported from a project appears under **Exports** in the source shoot and in Library. Tap the export to open it or return to the verified original. Pausing and resuming preserves the project association.
 

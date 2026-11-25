@@ -40,20 +40,29 @@ internal class SonyMediaStore(private val context:Context,injectedHistory:Import
         historyDraft:((MediaImportTransaction.Item,Uri)->ImportHistoryDraft)?=null,
         documentFile:AlbumMediaFile?=null)=object:MediaImportTransaction.Port {
         private fun file(item:MediaImportTransaction.Item) = documentFile?.also { check(it.name==item.name) } ?: SonyImportPlan.file(item.name)
+        private val album =
+            if (documentFile != null && !documentFile.image && !documentFile.video) AlbumMediaFile.DOWNLOAD_DIRECTORY
+            else SonyImportPlan.ALBUM
+
         private val pendingItems=mutableMapOf<String,MediaImportTransaction.Item>()
         private val historyIds=mutableMapOf<String,String>()
         private val receipts=mutableMapOf<String,ImportHistoryReceipt>()
         override fun createPending(item:MediaImportTransaction.Item):String {
             val plan=file(item)
-            val collection=if(plan.video) MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) else MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val volume = MediaStore.VOLUME_EXTERNAL_PRIMARY
+            val collection = when {
+                plan.video -> MediaStore.Video.Media.getContentUri(volume)
+                plan.image -> MediaStore.Images.Media.getContentUri(volume)
+                else -> MediaStore.Downloads.getContentUri(volume)
+            }
             val filename = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? COLLATE NOCASE AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
             resolver.query(collection, arrayOf(MediaStore.MediaColumns._ID), filename,
-                arrayOf(plan.name, SonyImportPlan.ALBUM), null)!!.use {
+                arrayOf(plan.name, album), null)!!.use {
                 if (it.moveToFirst()) throw MediaImportTransaction.FilenameConflict()
             }
             val values=ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME,plan.name);put(MediaStore.MediaColumns.MIME_TYPE,plan.mime)
-                put(MediaStore.MediaColumns.RELATIVE_PATH,SonyImportPlan.ALBUM);put(MediaStore.MediaColumns.IS_PENDING,1)
+                put(MediaStore.MediaColumns.RELATIVE_PATH,album);put(MediaStore.MediaColumns.IS_PENDING,1)
             }
             return (resolver.insert(collection,values) ?: error("Could not create pending import")).toString().also { pendingItems[it]=item }
         }
@@ -63,7 +72,7 @@ internal class SonyMediaStore(private val context:Context,injectedHistory:Import
                 MediaStore.MediaColumns.OWNER_PACKAGE_NAME, MediaStore.MediaColumns.IS_PENDING, MediaStore.MediaColumns.RELATIVE_PATH)
             resolver.query(uri, columns, null, null, null)!!.use {
                 check(it.moveToFirst() && it.getString(2) == context.packageName && it.getInt(3) == 1 &&
-                    it.getString(4) == SonyImportPlan.ALBUM)
+                    it.getString(4) == album)
                 val staged = java.io.File(checkNotNull(it.getString(1)))
                 val stagedName = staged.name.replaceFirst(Regex("^\\.pending-[0-9]+-"), "")
                 if (it.getString(0) != name || stagedName != name ||
@@ -108,7 +117,7 @@ internal class SonyMediaStore(private val context:Context,injectedHistory:Import
             }
             // Index the actual capture time when available, rather than import time.
             val metadata = ImportCaptureMetadata.read(capture(item),
-                openImage = if (plan.video) null else ({ resolver.openInputStream(uri) }))
+                openImage = if (plan.image) ({ resolver.openInputStream(uri) }) else null)
             val captureTime = metadata.time
             val zone = java.time.ZoneId.systemDefault()
             captureTime?.epochMillis(zone)?.takeIf { it>=0 }?.let { time ->
@@ -137,13 +146,13 @@ internal class SonyMediaStore(private val context:Context,injectedHistory:Import
             val item=checkNotNull(pendingItems[destination])
             requireOriginalName(uri, item.name)
             val scope="${MediaStore.MediaColumns.IS_PENDING}=1 AND ${MediaStore.MediaColumns.RELATIVE_PATH}=? AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME}=?"
-            check(resolver.update(uri,ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING,0) },scope,arrayOf(SonyImportPlan.ALBUM,context.packageName))==1)
+            check(resolver.update(uri,ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING,0) },scope,arrayOf(album,context.packageName))==1)
             val columns = arrayOf(MediaStore.MediaColumns.IS_PENDING, MediaStore.MediaColumns.SIZE,
                 MediaStore.MediaColumns.RELATIVE_PATH, MediaStore.MediaColumns.OWNER_PACKAGE_NAME,
                 MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.DATA)
             resolver.query(uri, columns, null, null, null)!!.use {
                 check(it.moveToFirst() && it.getInt(0) == 0 && it.getLong(1) == item.bytes &&
-                    it.getString(2) == SonyImportPlan.ALBUM && it.getString(3) == context.packageName)
+                    it.getString(2) == album && it.getString(3) == context.packageName)
                 check(it.getString(4) == item.name && java.io.File(checkNotNull(it.getString(5))).name == item.name)
             }
         }
@@ -163,7 +172,7 @@ internal class SonyMediaStore(private val context:Context,injectedHistory:Import
             val scope="${MediaStore.MediaColumns.IS_PENDING}=1 AND ${MediaStore.MediaColumns.RELATIVE_PATH}=? AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME}=?"
             // Some providers reject a guarded delete with no matching row. Never
             // retry without the guard: resolve retention/absence by readback.
-            val deleted=try { resolver.delete(uri,scope,arrayOf(SonyImportPlan.ALBUM,context.packageName)) } catch(_:SecurityException) { 0 }
+            val deleted=try { resolver.delete(uri,scope,arrayOf(album,context.packageName)) } catch(_:SecurityException) { 0 }
             check(deleted in 0..1)
             if(deleted==1) { historyId?.let { runCatching { history.interrupted(it) } };return MediaImportTransaction.Cleanup.REMOVED }
             resolver.query(uri,arrayOf(MediaStore.MediaColumns._ID),null,null,null)!!.use {

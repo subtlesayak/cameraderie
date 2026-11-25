@@ -79,7 +79,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
         selecting = pickingForProject || savedInstanceState?.getBoolean("selecting") == true
         selected.addAll(savedInstanceState?.getStringArrayList("selection").orEmpty().take(500))
         mode=runCatching { SonyGalleryLayout.Mode.valueOf(savedInstanceState?.getString("layout").orEmpty()) }.getOrDefault(mode)
-        filter=savedInstanceState?.getInt("filter")?.coerceIn(0,2) ?: 0
+        filter=savedInstanceState?.getInt("filter")?.coerceIn(0,4) ?: 0
         protect()
         val root=object:LinearLayout(this) {
             override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int) {
@@ -150,7 +150,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
     }
     private fun cancelTask() { actionSignal?.cancel();actionSignal=null;task?.cancel(true);task=null }
     private fun chooseFilter() {
-        val options=arrayOf("All imports","Photos and images","Videos")
+        val options=arrayOf("All imports", "Photos and images", "Videos", "Audio", "GPX tracks")
         MaterialAlertDialogBuilder(this).setTitle("Show imported media").setSingleChoiceItems(options,filter) { dialog,index ->
             filter=index;dialog.dismiss();applyFilter()
         }.setNegativeButton("Close",null).create().also { SonyScreenWindows.showMedia(it,this) }
@@ -185,7 +185,16 @@ open class ImportedImagesActivity:CameraderieActivity() {
         }
     }
     private fun applyFilter() {
-        showing=records.filter { row -> when(filter) { 1 -> row.receipt?.mime?.startsWith("image/")==true;2 -> row.receipt?.mime?.startsWith("video/")==true;else -> true } }
+        showing = records.filter { row ->
+            val mime = row.receipt?.mime.orEmpty()
+            when (filter) {
+                1 -> mime.startsWith("image/")
+                2 -> mime.startsWith("video/")
+                3 -> mime.startsWith("audio/")
+                4 -> mime == "application/gpx+xml"
+                else -> true
+            }
+        }
         empty.text = when {
             records.isEmpty() && pickingForProject -> "No verified imports yet."
             records.isEmpty() -> "No saved imports yet."
@@ -314,10 +323,22 @@ open class ImportedImagesActivity:CameraderieActivity() {
             if(detail!==dialog)return@load
             image.setImageBitmap(result.bitmap)
             val item=result.item;val receipt=entry.receipt
-            filename.text=item?.name ?: receipt?.displayName ?: entry.draft.displayName
+            val name = item?.name ?: receipt?.displayName ?: entry.draft.displayName
+            filename.text = name
             val bytes=item?.bytes ?: receipt?.bytes ?: entry.draft.expectedBytes
-            val mime=item?.mime ?: receipt?.mime
-            val format=when(mime) { "image/jpeg" -> "JPEG";"image/png" -> "PNG";"video/mp4" -> "MP4";"image/x-adobe-dng" -> "DNG";"audio/wav","audio/x-wav" -> "WAV";else -> mime?.substringAfter('/')?.uppercase() ?: "Format unknown" }
+            val mime = receipt?.mime ?: item?.mime
+            val format = when (mime) {
+                "image/jpeg" -> "JPEG"
+                "image/png" -> "PNG"
+                "video/mp4" -> "MP4"
+                "image/x-adobe-dng" -> "DNG"
+                "audio/wav", "audio/x-wav" -> "WAV"
+                "audio/mp4" -> "M4A"
+                "audio/mpeg" -> "MP3"
+                "application/gpx+xml" -> "GPX"
+                "application/octet-stream" -> name.substringAfterLast('.', "").uppercase().ifBlank { "Format unknown" }
+                else -> mime?.substringAfter('/')?.uppercase() ?: "Format unknown"
+            }
             val pixels=if(receipt?.width!=null && receipt.height!=null)receipt.width.toLong()*receipt.height else null
             val megapixels=pixels?.let { String.format(java.util.Locale.getDefault()," · %.1f MP",it/1_000_000.0) }.orEmpty()
             facts.text="$format$megapixels · ${android.text.format.Formatter.formatShortFileSize(this,bytes)}"

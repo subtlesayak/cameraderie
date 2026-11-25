@@ -2,7 +2,7 @@ package app.cameraderie.gallery.media.history
 
 import java.net.URI
 
-/** Images, video and Files collection URIs can alias the same MediaStore row.
+/** MediaStore collection URIs can alias the same Files row.
  * Keep the original usable reference, but key history by one canonical identity. */
 object LocalMediaIdentity {
     private const val authority = "com.android.externalstorage.documents"
@@ -27,7 +27,7 @@ object LocalMediaIdentity {
         require(uri.scheme=="content" && uri.rawAuthority=="media" && uri.rawQuery==null && uri.rawFragment==null)
         val parts=uri.rawPath.split('/').drop(1)
         require(parts.firstOrNull()=="external_primary")
-        require((parts.size==3 && parts[1]=="file") || (parts.size==4 && parts[1] in setOf("images","video") && parts[2]=="media"))
+        require((parts.size==3 && parts[1] in setOf("file","downloads")) || (parts.size==4 && parts[1] in setOf("images","video") && parts[2]=="media"))
         require(Regex("[1-9][0-9]*").matches(parts.last()))
         val id=parts.last().toLongOrNull();require(id!=null && id>0)
         return "content://media/external_primary/file/$id"
