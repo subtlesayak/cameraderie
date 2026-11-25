@@ -20,6 +20,7 @@ The project workspace is the product goal. It builds on verified imports and the
 - [Camera connections](docs/COMPATIBILITY.md) for discovery, live view, shooting controls, media browsing, and proxy playback where the adapter supports them.
 - [Verified imports](docs/USAGE.md#import-files) to the phone album or a selected folder, with duplicate detection and resumable camera downloads where supported.
 - [Video editing](docs/USAGE.md#edit-a-video) with in-preview crop, filmstrip trimming, full-resolution frame extraction, `.cube` LUTs, and AVC or 10-bit HEVC export.
+- [Resolve interchange](docs/USAGE.md#send-selected-project-takes) for selected project cuts with editable timelines, LUTs, ride alignment, and source checksums.
 - [Ride telemetry](docs/USAGE.md#attach-ride-telemetry) from GPX, CSV, or JSON, aligned by capture time with an adjustable offset and highlight markers.
 - [Library relinking](docs/USAGE.md#relink-an-existing-library) for existing files, verified receipts, and eligible download queue entries.
 

@@ -30,7 +30,7 @@ internal class VideoExportCheckpoints(privateDir: File, legacyCacheDir: File, pr
         val previous = files()
         val destination = File(directory, "$sourceKey.${editKey(edit)}.${UUID.randomUUID()}.mp4")
         try {
-            DataOutputStream(recipe(destination).outputStream().buffered()).use { it.writeEdit(edit) }
+            DataOutputStream(recipe(destination).outputStream().buffered()).use { VideoEditRecipe.write(it, edit) }
             // The MP4 rename commits the pair. An interruption before it leaves the previous pair in place.
             Files.move(output.toPath(), destination.toPath(), ATOMIC_MOVE)
         } finally {
@@ -97,45 +97,11 @@ internal class VideoExportCheckpoints(privateDir: File, legacyCacheDir: File, pr
 
     private fun recipe(file: File) = File(file.parentFile, "${file.nameWithoutExtension}.edit")
 
-    private fun editKey(edit: Media3VideoEdit) = fingerprint { writeEdit(edit) }
-
-    private fun DataOutputStream.writeEdit(edit: Media3VideoEdit) {
-        // Change the schema when the export pipeline changes existing edit semantics.
-        writeInt(if (edit.projectId == null) 1 else 2)
-        writeLong(edit.trim.startMs)
-        writeLong(edit.trim.endMs)
-        writeUTF(edit.format.name)
-        writeBoolean(edit.crop != null)
-        edit.crop?.let {
-            writeFloat(it.left)
-            writeFloat(it.right)
-            writeFloat(it.bottom)
-            writeFloat(it.top)
-            writeInt(it.width)
-            writeInt(it.height)
-        }
-        writeInt(edit.lut?.size ?: 0)
-        edit.lut?.rgb?.forEach(::writeFloat)
-        edit.projectId?.let(::writeUTF)
-    }
+    private fun editKey(edit: Media3VideoEdit) = fingerprint { VideoEditRecipe.write(this, edit) }
 
     private fun readEdit(file: File): Media3VideoEdit = DataInputStream(recipe(file).inputStream().buffered()).use {
-        val version = it.readInt()
-        require(version in 1..2)
-        val trim = TrimRange(it.readLong(), it.readLong())
-        require(trim.endMs <= source.durationMs)
-        val format = VideoOutput.valueOf(it.readUTF())
-        val crop = if (it.readBoolean()) CropFrame(it.readFloat(), it.readFloat(), it.readFloat(), it.readFloat(),
-            it.readInt(), it.readInt()).also { frame ->
-            require(frame.left in -1f..1f && frame.right in -1f..1f && frame.left < frame.right)
-            require(frame.bottom in -1f..1f && frame.top in -1f..1f && frame.bottom < frame.top)
-            require(frame.width in 16..source.width && frame.height in 16..source.height)
-        } else null
-        val size = it.readInt()
-        val lut = if (size == 0) null else CubeLut.fromCheckpoint(size, it::readFloat)
-        val projectId = if (version == 2) it.readUTF().also { id -> require(id.isNotBlank()) } else null
-        val edit = Media3VideoEdit(trim, crop, lut, format, projectId)
-        require(it.read() == -1 && file.name.startsWith("$sourceKey.${editKey(edit)}."))
+        val edit = VideoEditRecipe.read(it, source.width, source.height, source.durationMs)
+        require(file.name.startsWith("$sourceKey.${editKey(edit)}."))
         edit
     }
 

@@ -68,35 +68,75 @@ internal object ResolvePackage {
         val width: Int, val height: Int, val camera: String?,
     )
 
-    private class Cut(
-        source: Source, edit: Media3VideoEdit, val media: Media,
-        ride: RideStore.ExportSnapshot?,
+    internal data class Input(
+        val source: Source, val edit: Media3VideoEdit, val media: Media,
+        val origin: ProjectExportOrigin?, val ride: RideStore.ExportSnapshot?,
     ) {
-        val name = source.name.substringBeforeLast('.') + " · Cameraderie"
+        companion object {
+            fun from(context: Context, video: VerifiedVideo, edit: Media3VideoEdit, origin: ProjectExportOrigin?): Input {
+                val receipt = checkNotNull(video.entry.receipt)
+                val hash = checkNotNull(receipt.sha256)
+                val source = Source(video.name, video.entry.draft.id, receipt.bytes, hash,
+                    video.width, video.height, video.entry.draft.cameraModel)
+                return Input(source, edit, Media.inspect(video), origin, RideStore.exportSnapshot(context, hash))
+            }
+        }
+    }
+
+    internal data class Project(val name: String, val id: String, val shootId: String?)
+
+    private class Cut(input: Input, val index: Int, val timelineStartSeconds: Double, project: Boolean) {
+        val source = input.source
+        val media = input.media
+        val folder = if (project) "clips/$index/" else ""
         val filename = source.name.also { value ->
             require(value.isNotBlank() && value != "." && value != ".." && value.none { it == '/' || it == '\\' || it.isISOControl() })
         }
-        val path = URI(null, null, "media/$filename", null).toASCIIString()
+        val path = URI(null, null, if (project) "media/$index/$filename" else "media/$filename", null).toASCIIString()
         val rate = media.rate
         val length = rate.frames(media.durationMs).coerceAtLeast(1)
-        val first = rate.frames(edit.trim.startMs).coerceIn(0, length - 1)
-        val last = rate.frames(edit.trim.endMs).coerceIn(first + 1, length)
+        val first = rate.frames(input.edit.trim.startMs).coerceIn(0, length - 1)
+        val last = rate.frames(input.edit.trim.endMs).coerceIn(first + 1, length)
         val frames = last - first
-        val markers = ride?.markers.orEmpty().filter { it >= edit.trim.startMs && it < edit.trim.endMs }
-            .map { (rate.frames(it) - first).coerceIn(0, frames - 1) }.distinct()
+        val timelineEndSeconds = timelineStartSeconds + frames / rate.fps
+        val markers = input.ride?.markers.orEmpty().filter { it >= input.edit.trim.startMs && it < input.edit.trim.endMs }
+            .map { (rate.frames(it) - first).coerceIn(0, frames - 1) }.distinct().sorted()
+    }
+
+    private data class Position(val cut: Cut, val start: Long, val end: Long)
+
+    private class Timeline(val name: String, val rate: Rate, val cuts: List<Cut>) {
+        val audio = cuts.any { it.media.audio }
+        val positions = buildList {
+            var cursor = 0L
+            for (cut in cuts) {
+                val end = (cut.timelineEndSeconds * rate.fps).roundToLong().coerceAtLeast(cursor + 1)
+                add(Position(cut, cursor, end))
+                cursor = end
+            }
+        }
+        val xmlMarkers = positions.flatMap { (cut, start, end) ->
+            cut.markers.map { frame ->
+                (start + (frame / cut.rate.fps * rate.fps).roundToLong()).coerceAtMost(end - 1)
+            }
+        }
     }
 
     fun save(context: Context, destination: Uri, video: VerifiedVideo, edit: Media3VideoEdit, cancelled: () -> Boolean) {
-        val receipt = checkNotNull(video.entry.receipt)
-        val hash = checkNotNull(receipt.sha256)
-        val source = Source(video.name, video.entry.draft.id, receipt.bytes, hash,
-            video.width, video.height, video.entry.draft.cameraModel)
         val origin = edit.projectId?.let { id -> ProjectStore(context).use { it.exportOrigin(id, video.entry) } }
-        val ride = RideStore.exportSnapshot(context, hash)
-        val media = Media.inspect(video)
+        val input = Input.from(context, video, edit, origin)
+        saveArchive(context, destination, cancelled) {
+            write(it, input.source, input.edit, input.media, input.origin, input.ride)
+        }
+    }
+
+    fun saveProject(context: Context, destination: Uri, project: Project, clips: Sequence<Input>, cancelled: () -> Boolean) =
+        saveArchive(context, destination, cancelled) { writeProject(it, project, clips, cancelled) }
+
+    private fun saveArchive(context: Context, destination: Uri, cancelled: () -> Boolean, write: (File) -> Unit) {
         val stage = File.createTempFile("resolve-package-", ".zip", context.cacheDir)
         try {
-            write(stage, source, edit, media, origin, ride)
+            write(stage)
             checkActive(cancelled)
             val resolver = context.contentResolver
             val expected = stage.inputStream().use { digest(it, cancelled) }
@@ -120,123 +160,187 @@ internal object ResolvePackage {
     internal fun write(
         file: File, source: Source, edit: Media3VideoEdit, media: Media,
         origin: ProjectExportOrigin?, ride: RideStore.ExportSnapshot?,
-    ) {
-        val cut = Cut(source, edit, media, ride)
+    ) =
+        writeArchive(file, sequenceOf(Input(source, edit, media, origin, ride)), null) { false }
+
+    internal fun writeProject(file: File, project: Project, clips: Sequence<Input>, cancelled: () -> Boolean = { false }) =
+        writeArchive(file, clips, project, cancelled)
+
+    private fun writeArchive(file: File, inputs: Sequence<Input>, project: Project?, cancelled: () -> Boolean) {
         val files = JSONObject()
+        val cuts = mutableListOf<Cut>()
+        val clips = mutableListOf<JSONObject>()
         ZipOutputStream(file.outputStream().buffered()).use { zip ->
             fun add(path: String, bytes: ByteArray) {
+                checkActive(cancelled)
                 val hash = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
                 files.put(path, JSONObject().put("bytes", bytes.size).put("sha256", hash))
                 zip.entry(path, bytes)
             }
-            add("timeline.otio", otio(cut).toString(2).toByteArray(Charsets.UTF_8))
-            add("timeline.xml", xml(cut, source).toByteArray(Charsets.UTF_8))
-            edit.lut?.let { add("look.cube", cube(it).toByteArray(Charsets.UTF_8)) }
-            ride?.let {
-                add("ride/alignment.json", it.alignment)
-                add("ride/track.${it.extension}", it.track)
+            var next = 0.0
+            for (input in inputs) {
+                checkActive(cancelled)
+                if (project != null) {
+                    val origin = checkNotNull(input.origin)
+                    check(origin.projectId == project.id && origin.sourceImportId == input.source.importId &&
+                        origin.sourceSha256 == input.source.sha256)
+                    check(project.shootId == null || origin.shootId == project.shootId)
+                }
+                val cut = Cut(input, cuts.size + 1, next, project != null)
+                next = cut.timelineEndSeconds
+                cuts.add(cut)
+                val clip = manifestClip(input, cut)
+                clips.add(clip)
+                input.edit.lut?.let {
+                    val path = cut.folder + "look.cube"
+                    add(path, cube(it).toByteArray(Charsets.UTF_8))
+                    if (project != null) clip.put("lut", path)
+                }
+                input.ride?.let {
+                    val alignment = cut.folder + "ride/alignment.json"
+                    val track = cut.folder + "ride/track.${it.extension}"
+                    add(alignment, it.alignment)
+                    add(track, it.track)
+                    if (project != null) clip.put("ride", JSONObject().put("alignment", alignment).put("track", track))
+                }
             }
-            val reference = JSONObject().put("name", cut.filename).put("relativeUrl", cut.path)
-                .put("importId", source.importId).put("bytes", source.bytes).put("sha256", source.sha256)
-                .putOpt("camera", source.camera)
-            val range = JSONObject().put("startMs", edit.trim.startMs).put("endMs", edit.trim.endMs)
-                .put("inFrame", cut.first).put("outFrame", cut.last).put("fps", cut.rate.fps)
-            val manifest = JSONObject().put("version", 1).put("source", reference).put("trim", range).put("files", files)
-                .putOpt("projectId", origin?.projectId).putOpt("shootId", origin?.shootId)
-                .putOpt("telemetryOffsetMs", ride?.offsetMs).put("timelineMarkers", JSONArray(cut.markers))
-            edit.crop?.let { crop ->
-                manifest.put("crop", JSONObject().put("left", crop.left).put("right", crop.right)
-                    .put("top", crop.top).put("bottom", crop.bottom).put("width", crop.width).put("height", crop.height))
-            }
+            val first = cuts.firstOrNull() ?: throw IOException("Mark at least one verified original video as a selected take.")
+            val timeline = Timeline(project?.name ?: first.filename.substringBeforeLast('.') + " · Cameraderie", first.rate, cuts)
+            add("timeline.otio", otio(timeline).toString(2).toByteArray(Charsets.UTF_8))
+            add("timeline.xml", xml(timeline).toByteArray(Charsets.UTF_8))
+            val manifest = if (project == null) clips.single().put("version", 1)
+            else JSONObject().put("version", 2).put("projectId", project.id).putOpt("shootId", project.shootId)
+                .put("timelineFps", timeline.rate.fps).put("clips", JSONArray(clips))
+            manifest.put("files", files).put("timelineMarkers", JSONArray(timeline.xmlMarkers))
             zip.entry("manifest.json", manifest.toString(2).toByteArray(Charsets.UTF_8))
         }
     }
 
-    private fun otio(cut: Cut): JSONObject {
-        fun typed(schema: String) = JSONObject().put("OTIO_SCHEMA", schema)
-        fun time(frame: Long) = typed("RationalTime.1").put("value", frame).put("rate", cut.rate.fps)
-        fun range(start: Long, duration: Long) = typed("TimeRange.1")
-            .put("start_time", time(start)).put("duration", time(duration))
-        fun node(schema: String, label: String) = typed(schema).put("name", label).put("metadata", JSONObject())
-            .put("source_range", JSONObject.NULL).put("effects", JSONArray()).put("markers", JSONArray())
-        val kinds = if (cut.media.audio) listOf("Video", "Audio") else listOf("Video")
-        val tracks = kinds.map { kind ->
-            val reference = typed("ExternalReference.1").put("name", cut.filename).put("metadata", JSONObject())
-                .put("available_range", range(0, cut.length)).put("target_url", cut.path)
-            val item = node("Clip.1", cut.filename).put("source_range", range(cut.first, cut.frames))
-                .put("media_reference", reference)
-            node("Track.1", kind).put("kind", kind).put("children", JSONArray(listOf(item)))
+    private fun manifestClip(input: Input, cut: Cut): JSONObject {
+        val source = input.source
+        val reference = JSONObject().put("name", cut.filename).put("relativeUrl", cut.path)
+            .put("importId", source.importId).put("bytes", source.bytes).put("sha256", source.sha256)
+            .putOpt("camera", source.camera)
+        val trim = input.edit.trim
+        val range = JSONObject().put("startMs", trim.startMs).put("endMs", trim.endMs)
+            .put("inFrame", cut.first).put("outFrame", cut.last).put("fps", cut.rate.fps)
+        val clip = JSONObject().put("source", reference).put("trim", range)
+            .putOpt("projectId", input.origin?.projectId).putOpt("shootId", input.origin?.shootId)
+            .putOpt("telemetryOffsetMs", input.ride?.offsetMs)
+        if (cut.folder.isNotEmpty()) clip.put("timelineStartSeconds", cut.timelineStartSeconds)
+            .put("timelineEndSeconds", cut.timelineEndSeconds).put("sourceMarkers", JSONArray(cut.markers.map { cut.first + it }))
+        input.edit.crop?.let { crop ->
+            clip.put("crop", JSONObject().put("left", crop.left).put("right", crop.right)
+                .put("top", crop.top).put("bottom", crop.bottom).put("width", crop.width).put("height", crop.height))
         }
-        val markers = cut.markers.mapIndexed { index, frame ->
-            typed("Marker.2").put("metadata", JSONObject()).put("name", "Highlight ${index + 1}")
-                .put("marked_range", range(frame, 0)).put("color", "YELLOW").put("comment", "")
-        }
-        val stack = node("Stack.1", "tracks").put("children", JSONArray(tracks)).put("markers", JSONArray(markers))
-        return typed("Timeline.1").put("metadata", JSONObject()).put("name", cut.name)
-            .put("global_start_time", time(0)).put("tracks", stack)
+        return clip
     }
 
-    private fun xml(cut: Cut, source: Source): String {
+    private fun otio(timeline: Timeline): JSONObject {
+        fun typed(schema: String) = JSONObject().put("OTIO_SCHEMA", schema)
+        fun time(frame: Double, rate: Rate) = typed("RationalTime.1").put("value", frame).put("rate", rate.fps)
+        fun range(start: Double, duration: Double, rate: Rate) = typed("TimeRange.1")
+            .put("start_time", time(start, rate)).put("duration", time(duration, rate))
+        fun node(schema: String, label: String) = typed(schema).put("name", label).put("metadata", JSONObject())
+            .put("source_range", JSONObject.NULL).put("effects", JSONArray()).put("markers", JSONArray())
+        val kinds = if (timeline.audio) listOf("Video", "Audio") else listOf("Video")
+        val tracks = kinds.map { kind ->
+            val clips = timeline.cuts.map { cut ->
+                val rate = cut.rate
+                if (kind == "Audio" && !cut.media.audio) node("Gap.1", "")
+                    .put("source_range", range(0.0, cut.frames.toDouble(), rate))
+                else {
+                    val reference = typed("ExternalReference.1").put("name", cut.filename).put("metadata", JSONObject())
+                        .put("available_range", range(0.0, cut.length.toDouble(), rate)).put("target_url", cut.path)
+                    node("Clip.1", cut.filename).put("source_range", range(cut.first.toDouble(), cut.frames.toDouble(), rate))
+                        .put("media_reference", reference)
+                }
+            }
+            node("Track.1", kind).put("kind", kind).put("children", JSONArray(clips))
+        }
+        val positions = timeline.cuts.flatMap { cut ->
+            cut.markers.map { (cut.timelineStartSeconds + it / cut.rate.fps) * timeline.rate.fps }
+        }
+        val markers = positions.mapIndexed { index, frame ->
+            typed("Marker.2").put("metadata", JSONObject()).put("name", "Highlight ${index + 1}")
+                .put("marked_range", range(frame, 0.0, timeline.rate)).put("color", "YELLOW").put("comment", "")
+        }
+        val stack = node("Stack.1", "tracks").put("children", JSONArray(tracks)).put("markers", JSONArray(markers))
+        return typed("Timeline.1").put("metadata", JSONObject()).put("name", timeline.name)
+            .put("global_start_time", time(0.0, timeline.rate)).put("tracks", stack)
+    }
+
+    private fun xml(timeline: Timeline): String {
         val result = StringWriter()
         val xml = XmlPullParserFactory.newInstance().newSerializer().apply {
             setOutput(result)
             startDocument("UTF-8", true)
         }
-        fun XmlSerializer.rate() = tag("rate") {
-            textTag("timebase", cut.rate.timebase)
-            textTag("ntsc", if (cut.rate.ntsc) "TRUE" else "FALSE")
+        fun XmlSerializer.rate(value: Rate) = tag("rate") {
+            textTag("timebase", value.timebase)
+            textTag("ntsc", if (value.ntsc) "TRUE" else "FALSE")
         }
-        fun XmlSerializer.clip(audio: Boolean) = tag("clipitem", "id" to if (audio) "clipitem-2" else "clipitem-1") {
-            textTag("name", cut.filename)
-            rate()
-            textTag("duration", cut.frames)
-            textTag("start", 0)
-            textTag("end", cut.frames)
-            textTag("in", cut.first)
-            textTag("out", cut.last)
-            tag("file", "id" to "file-1") {
-                if (!audio) {
-                    textTag("name", cut.filename)
-                    textTag("pathurl", cut.path)
-                    rate()
-                    textTag("duration", cut.length)
-                    tag("media") {
-                        tag("video") { }
-                        if (cut.media.audio) tag("audio") { }
+        fun XmlSerializer.clip(position: Position, audio: Boolean, audioIndex: Int) {
+            val (cut, start, end) = position
+            val videoId = "clipitem-${2 * cut.index - 1}"
+            val audioId = "clipitem-${2 * cut.index}"
+            tag("clipitem", "id" to if (audio) audioId else videoId) {
+                textTag("name", cut.filename)
+                rate(cut.rate)
+                textTag("duration", cut.frames)
+                textTag("start", start)
+                textTag("end", end)
+                textTag("in", cut.first)
+                textTag("out", cut.last)
+                tag("file", "id" to "file-${cut.index}") {
+                    if (!audio) {
+                        textTag("name", cut.filename)
+                        textTag("pathurl", cut.path)
+                        rate(cut.rate)
+                        textTag("duration", cut.length)
+                        tag("media") {
+                            tag("video") { }
+                            if (cut.media.audio) tag("audio") { }
+                        }
+                    }
+                }
+                tag("sourcetrack") {
+                    textTag("mediatype", if (audio) "audio" else "video")
+                    textTag("trackindex", 1)
+                }
+                if (cut.media.audio) {
+                    for ((linkId, type) in listOf(videoId to "video", audioId to "audio")) tag("link") {
+                        textTag("linkclipref", linkId)
+                        textTag("mediatype", type)
+                        textTag("trackindex", 1)
+                        textTag("clipindex", if (type == "audio") audioIndex else cut.index)
                     }
                 }
             }
-            tag("sourcetrack") {
-                textTag("mediatype", if (audio) "audio" else "video")
-                textTag("trackindex", 1)
-            }
-            if (cut.media.audio) {
-                for ((linkId, type) in listOf("clipitem-1" to "video", "clipitem-2" to "audio")) tag("link") {
-                    textTag("linkclipref", linkId)
-                    textTag("mediatype", type)
-                    textTag("trackindex", 1)
-                    textTag("clipindex", 1)
-                }
-            }
         }
+        val withAudio = timeline.positions.filter { it.cut.media.audio }
+        val audioIndices = withAudio.mapIndexed { index, position -> position.cut.index to index + 1 }.toMap()
+        val source = timeline.cuts.first().source
         xml.tag("xmeml", "version" to "4") {
             tag("sequence", "id" to "sequence-1") {
-                textTag("name", cut.name)
-                textTag("duration", cut.frames)
-                rate()
+                textTag("name", timeline.name)
+                textTag("duration", timeline.positions.last().end)
+                rate(timeline.rate)
                 tag("media") {
                     tag("video") {
                         tag("format") { tag("samplecharacteristics") {
-                            rate()
+                            rate(timeline.rate)
                             textTag("width", source.width)
                             textTag("height", source.height)
                             textTag("pixelaspectratio", "square")
                         } }
-                        tag("track") { clip(false) }
+                        tag("track") { timeline.positions.forEach { clip(it, false, audioIndices[it.cut.index] ?: 0) } }
                     }
-                    if (cut.media.audio) tag("audio") { tag("track") { clip(true) } }
+                    if (timeline.audio) tag("audio") { tag("track") {
+                        withAudio.forEachIndexed { index, position -> clip(position, true, index + 1) }
+                    } }
                 }
-                cut.markers.forEachIndexed { index, frame -> tag("marker") {
+                timeline.xmlMarkers.forEachIndexed { index, frame -> tag("marker") {
                     textTag("name", "Highlight ${index + 1}")
                     textTag("in", frame)
                     textTag("out", frame)

@@ -3,6 +3,7 @@ package app.cameraderie.projects
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.text.InputFilter
 import android.text.InputType
 import android.view.View
@@ -32,6 +33,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import java.io.IOException
 import java.util.concurrent.Executors
 
 class ProjectsActivity : CameraderieActivity() {
@@ -46,6 +48,21 @@ class ProjectsActivity : CameraderieActivity() {
     private lateinit var header: LinearLayout
     private var message = ""
     private var filters = MediaFilters()
+    private val cancelOnExit = CancellationSignal()
+    private var exportingResolve = false
+    private val resolveDestination = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        val id = projectId ?: return@registerForActivityResult
+        if (uri == null || exportingResolve) return@registerForActivityResult
+        exportingResolve = true
+        message = "Preparing selected takes…"
+        load()
+        work({ runCatching { ProjectResolveExport.save(this, store, id, shootId, uri, cancelOnExit) } }) { result ->
+            exportingResolve = false
+            message = result.fold({ count -> "Resolve package verified · $count ${if (count == 1) "clip" else "clips"}" },
+                { (it as? IOException)?.message ?: "Couldn’t verify the Resolve package. Check the originals and destination." })
+            load()
+        }
+    }
     private val mediaPicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val id = projectId ?: return@registerForActivityResult
         if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
@@ -161,6 +178,18 @@ class ProjectsActivity : CameraderieActivity() {
             showProject(project, shoots, visibleMedia, visibleExports, filterStatus)
         } else {
             showShoot(project, activeShoot, shoots, visibleMedia, visibleExports, filterStatus)
+        }
+        val selectedVideo = media.any { item ->
+            item.selectedTake && originals[item.importId]?.let { entry ->
+                entry.receipt?.sha256 == item.sha256 && VerifiedVideo.supports(entry)
+            } == true
+        }
+        if (selectedVideo) toolbar.menu.add("Save selected takes for Resolve").apply {
+            isEnabled = !exportingResolve
+            setOnMenuItemClickListener {
+                if (!exportingResolve) resolveDestination.launch("Cameraderie-Selected-Takes.zip")
+                true
+            }
         }
         val shootNames = if (activeShoot == null) shoots.associate { it.id to it.name } else null
         val label = if (filters.count == 0) "Filter media" else "Filter media (${filters.count})"
@@ -445,6 +474,7 @@ class ProjectsActivity : CameraderieActivity() {
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
     override fun onDestroy() {
+        cancelOnExit.cancel()
         worker.execute { store.close() }
         worker.shutdown()
         super.onDestroy()

@@ -38,6 +38,7 @@ import app.cameraderie.gallery.media.GalleryFrameExporter
 import app.cameraderie.telemetry.TelemetryActivity
 import app.cameraderie.gallery.media.DocumentFolder
 import app.cameraderie.gallery.media.history.ImportHistoryRepository
+import app.cameraderie.projects.ProjectStore
 import app.cameraderie.sony.SonyImportPreferences
 import app.cameraderie.sony.SonyScreenProtection
 import app.cameraderie.sony.SonyScreenWindows
@@ -64,6 +65,7 @@ class VideoEditorActivity : CameraderieActivity() {
     private var scratch: VideoEditorScratch? = null
     private var state = State.VERIFYING
     private var original: VerifiedVideo? = null
+    private val projectId by lazy { intent.getStringExtra(PROJECT_ID) }
     private var lut: CubeLut? = null
     private var lutUri: Uri? = null
     private var lutName: String? = null
@@ -112,6 +114,12 @@ class VideoEditorActivity : CameraderieActivity() {
     private lateinit var frame: MaterialButton
     private lateinit var ride: MaterialButton
     private lateinit var resolvePackage: MaterialButton
+    private lateinit var saveProjectCut: MaterialButton
+
+    private data class LoadedVideo(
+        val video: VerifiedVideo, val main10: Boolean, val checkpoints: VideoExportCheckpoints,
+        val hasCheckpoint: Boolean, val projectCut: Result<Media3VideoEdit?>,
+    )
 
     private val lutPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -135,6 +143,7 @@ class VideoEditorActivity : CameraderieActivity() {
         super.onCreate(savedInstanceState)
         pendingResolveDestination = savedInstanceState?.getString(RESOLVE_DESTINATION)?.let(Uri::parse)
         pendingSliders = savedInstanceState?.getFloatArray(SLIDER_VALUES)
+        val restoreProjectLut = savedInstanceState?.getBoolean(SAVED_PROJECT_LUT) == true
         pendingLut = savedInstanceState?.getString(LUT_URI)?.let(Uri::parse)
         pendingLutFolder = savedInstanceState?.getString(LUT_FOLDER_URI)?.let(Uri::parse)
         interruptedExport = savedInstanceState?.getBoolean(EXPORT_ACTIVE) == true
@@ -161,15 +170,32 @@ class VideoEditorActivity : CameraderieActivity() {
                     File(staging.directory, "original"), cancelOnExit)
                 val main10 = video.acceptsRec709Lut && runCatching(Main10Export::available).getOrDefault(false)
                 val store = VideoExportCheckpoints(noBackupFilesDir, cacheDir, video)
-                Triple(video, main10, store to store.exists())
+                val cut = runCatching {
+                    projectOrigin(video)?.let { ProjectCutStore(noBackupFilesDir).read(it, video) }
+                }
+                LoadedVideo(video, main10, store, store.exists(), cut)
             }
             if (loaded.isFailure) scratch?.close()
             deliver {
-                loaded.fold(onSuccess = { (video, main10, saved) ->
+                loaded.fold(onSuccess = { (video, main10, saved, savedCheckpoint, projectCut) ->
                     original = video
-                    checkpoints = saved.first
-                    hasCheckpoint = saved.second
-                    configureTrim(video, pendingSliders)
+                    checkpoints = saved
+                    hasCheckpoint = savedCheckpoint
+                    val edit = projectCut.getOrNull()
+                    val firstOpen = pendingSliders == null
+                    val savedTrim = edit?.trim?.let { floatArrayOf(it.startMs.toFloat(), it.endMs.toFloat()) }
+                    configureTrim(video, pendingSliders ?: savedTrim)
+                    if (firstOpen && edit != null) {
+                        crop = edit.crop?.let { frame ->
+                            CropSelection((frame.left + 1) / 2, (1 - frame.top) / 2,
+                                (frame.right + 1) / 2, (1 - frame.bottom) / 2)
+                        } ?: CropSelection.FULL
+                        format = edit.format
+                    }
+                    if ((firstOpen || restoreProjectLut) && video.acceptsRec709Lut && edit?.lut != null) {
+                        lut = edit.lut
+                        lutName = "Project cut"
+                    }
                     cropOverlay.setVideoSize(video.width, video.height)
                     cropOverlay.setSelection(crop)
                     main10Available = main10
@@ -182,6 +208,7 @@ class VideoEditorActivity : CameraderieActivity() {
                     setState(State.READY, when {
                         hasCheckpoint -> "Resume export uses the saved trim, crop, LUT and video format."
                         interruptedExport -> "Export interrupted. Export again when you’re ready."
+                        projectCut.isFailure -> "Couldn’t restore the saved project cut."
                         else -> ""
                     })
                     interruptedExport = false
@@ -211,6 +238,7 @@ class VideoEditorActivity : CameraderieActivity() {
         outState.putBoolean(CROP_ACTIVE, cropping)
         outState.putString(OUTPUT_FORMAT, format.name)
         outState.putString(LUT_URI, (pendingLut ?: lutUri)?.toString())
+        outState.putBoolean(SAVED_PROJECT_LUT, lut != null && lutUri == null)
         outState.putString(LUT_FOLDER_URI, pendingLutFolder?.toString())
         outState.putBoolean(EXPORT_ACTIVE, interruptedExport || state == State.EXPORTING || state == State.SAVING)
         super.onSaveInstanceState(outState)
@@ -305,6 +333,8 @@ class VideoEditorActivity : CameraderieActivity() {
         updateFormatLabel()
         resolvePackage = ui.action("Save Resolve package") { resolveDestination.launch("Cameraderie-Resolve.zip") }
         ui.add(options, resolvePackage, 12)
+        saveProjectCut = ui.action("Save cut to project") { saveCut() }
+        if (projectId != null) ui.add(options, saveProjectCut, 8)
 
         val footer = ui.column().apply {
             setBackgroundColor(ui.tone.background)
@@ -499,6 +529,7 @@ class VideoEditorActivity : CameraderieActivity() {
         frame.isEnabled = ready
         ride.isEnabled = ready
         resolvePackage.isEnabled = ready
+        saveProjectCut.isEnabled = ready
         formatButton.isEnabled = ready
         preview.isEnabled = ready
         chooseLut.isEnabled = ready
@@ -631,7 +662,7 @@ class VideoEditorActivity : CameraderieActivity() {
             val trim = TrimRange(start, end)
             val frame = crop.frame(video.width, video.height)
             setState(State.READY, "")
-            Media3VideoEdit(trim, frame, lut, format, intent.getStringExtra(PROJECT_ID))
+            Media3VideoEdit(trim, frame, lut, format, projectId)
         } catch (e: IllegalArgumentException) {
             setState(State.READY, e.message ?: "Check the trim and crop values.")
             null
@@ -667,6 +698,26 @@ class VideoEditorActivity : CameraderieActivity() {
 
     private fun originalPlayhead(video: VerifiedVideo): Long =
         ((player?.currentPosition ?: 0L) + (previewEdit?.trim?.startMs ?: 0L)).coerceIn(0, video.durationMs - 1)
+
+    private fun projectOrigin(video: VerifiedVideo) = projectId?.let { id ->
+        ProjectStore(this).use { it.exportOrigin(id, video.entry) }
+    }
+
+    private fun saveCut() {
+        val video = original ?: return
+        if (state != State.READY) return
+        val edit = settings() ?: return
+        setState(State.SAVING, "Saving the project cut…")
+        worker.execute {
+            val saved = runCatching {
+                val origin = checkNotNull(projectOrigin(video))
+                cancelOnExit.throwIfCanceled()
+                ProjectCutStore(noBackupFilesDir).save(origin, edit)
+            }
+            deliver { setState(State.READY, if (saved.isSuccess) "Cut saved to project."
+                else "Couldn’t save the cut. Check that the original is still in this project.") }
+        }
+    }
 
     private fun saveResolvePackage() {
         val destination = pendingResolveDestination ?: return
@@ -912,6 +963,7 @@ class VideoEditorActivity : CameraderieActivity() {
         private const val OUTPUT_FORMAT = "output-format"
         private const val LUT_URI = "lut-uri"
         private const val RESOLVE_DESTINATION = "resolve-destination"
+        private const val SAVED_PROJECT_LUT = "saved-project-lut"
         private const val LUT_FOLDER_URI = "lut-folder-uri"
         private const val EXPORT_ACTIVE = "export-active"
 

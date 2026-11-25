@@ -49,6 +49,13 @@ Open a verified original from **Library** and tap **Edit video**. Set the crop d
 
 In GPStitch, use the exported GPX for a transparent overlay. A ride sample’s position on the cut is its timestamp minus the saved clip start, plus the saved ride offset, minus the trim start. Use the alignment JSON to check matching events in the video and track before placing the rendered overlay in Resolve. [GPStitch overlay workflow](https://github.com/Romancha/GPStitch#overlay-only-mode) · [Resolve timeline import guide](https://documents.blackmagicdesign.com/UserManuals/DaVinciResolveReferenceManual.pdf)
 
+### Send selected project takes
+
+1. Mark the videos you want as **Selected take**. To keep a trim, crop, and LUT without rendering an MP4, open the video from the project or shoot, edit it, and choose **Save cut to project**. The saved cut follows the original when you move it to another shoot.
+2. Open the project or shoot menu and choose **Save selected takes for Resolve**. The project export follows shoot order, then the files’ order within each shoot. Each clip uses its saved project cut, its latest linked published trim if available, or its full length.
+3. Unzip the package and place each original at the path recorded in `manifest.json`. Numbered media folders keep clips with identical filenames distinct. Each clip has its own trim, camera source, and checksums, with LUT and ride files under its numbered `clips` folder when available.
+4. Import `timeline.otio` in Resolve. If you use the XML fallback, clip placement and markers are rounded to the timeline frame rate. Both formats keep gaps in the audio track where a clip has no source audio.
+
 ## Attach ride telemetry
 
 Open **Ride telemetry** from the editor and attach a GPX track or route, a CSV with a timestamp column, or a JSON sample array. Timestamp fields such as `time`, `timestamp`, and `timestamp_ms` accept ISO 8601 timestamps with offsets or Unix timestamps in seconds or milliseconds.
