@@ -9,7 +9,7 @@ Cameraderie imports files independently of camera brand through Android’s file
 | Sony α7 III (ILCE-7M3) | Local Wi-Fi | Sony media discovery, gallery browsing, and JPEG import. | QR, model discovery, catalogue, saved reconnect, and Original/2M/VGA JPEG passed on Galaxy S24 FE. [Hardware test details](#sony-α7-iii-hardware-test) |
 | Sony α7 III (ILCE-7M3) | USB PC Remote | USB viewfinder, camera identity, firmware, ISO and recording-state readout, and an idle check before closing the viewfinder for gallery setup. | Live view and idle handoff passed on Galaxy S24 FE with camera firmware 4.0. [Hardware test details](#usb-pc-remote) |
 | Sony α7 III (ILCE-7M3) | USB MTP | Browse and import camera files from the card in slot 1. | Listed two videos and imported one verified 4K MP4 on Galaxy S24 FE. [Hardware test details](#usb-mtp-video) |
-| Sony a6400 | Local Wi-Fi | QR, manual and saved reconnect, catalogue and capture-date browsing, Original/2M/VGA JPEG choices, and verified import. | Pending. Repeat each JPEG option and record model and firmware. |
+| Sony a6400 | Local Wi-Fi | QR, manual and saved reconnect, catalogue and capture-date browsing, Original/2M/VGA JPEG choices, and verified import. | QR pairing, saved reconnect, 803 catalogue entries, and all three JPEG sizes verified on Galaxy S24 FE. [Hardware test details](#sony-a6400-wi-fi-hardware-test) |
 | Sony a6400 | USB PC Remote | Candidate for the same Sony USB viewfinder. | Pending physical test. |
 | Sony a6400 | USB MTP | USB discovery, Android’s access prompt, browse and import files the camera exposes. | Pending physical USB and genuine ARW byte comparison against an independent card read. |
 
@@ -32,6 +32,18 @@ Sony USB PC Remote and Sony Wi-Fi media transfer expose separate features. Sony 
 **DJI.** DJI documents the same R SDK on Action 6, Action 5 Pro, Action 4, and Osmo 360. Use the camera’s reported model, firmware, and confirmed status to gate commands. DJI documents USB/OTG transfer separately. Confirm playback, storage IDs, proxy URLs, and resumable originals separately for each wireless gallery adapter. [DJI R SDK](https://github.com/dji-sdk/Osmo-GPS-Controller-Demo/blob/main/docs/protocol.md) · [DJI OTG models and setup](https://repair.dji.com/help/content?customId=01700007307&documentType=&lang=en&paperDocType=ARTICLE&re=US&spaceId=17)
 
 **Nikon and other manufacturers.** Nikon exposes an MTP/PTP mode for Android on the Z6III and Z8. Fujifilm documents Android PTP import on the X-T5. Canon documents a photo-transfer mode on the EOS R50. The general USB adapter selects devices by transfer interface and confirms access by opening the session and reading its storage. Open GoPro exposes its own API, and Insta360 documents USB file-transfer mode. Their features can be added by transport as each is verified. [Nikon Z6III](https://onlinemanual.nikonimglib.com/z6III/en/nwm_usb_data_connection_365.html) · [Nikon Z8](https://onlinemanual.nikonimglib.com/z8/en/nwm_usb_%20data_connection_357.html) · [Fujifilm X-T5](https://app.fujifilm-dsc.com/en-int/manual/x-t5//connections/usage_usb/) · [Canon EOS R50](https://cam.start.canon/en/C011/manual/html/UG-09_Set-up_0230.html) · [Android MTP](https://developer.android.com/reference/android/mtp/MtpDevice) · [Open GoPro](https://gopro.github.io/OpenGoPro/) · [Insta360 File Transfer](https://onlinemanual.insta360.com/x4air/en-us/operating-tutorials/connect/files)
+
+## Sony a6400 Wi-Fi hardware test
+
+On 25 November 2026, a Galaxy S24 FE connected to a physical Sony a6400 in **Send to Smartphone → Select on Smartphone**. Cameraderie identified it as ILCE-6400, opened the gallery via QR, and later reopened the saved connection without scanning again. The catalogue contained 789 photo or other files and 14 videos.
+
+| JPEG choice | Saved dimensions | Saved bytes | Source |
+| --- | --- | --- | --- |
+| Original | 6000 × 4000 | 13,172,736 | Full-size JPEG offered by the camera |
+| 2M | 1732 × 1154 | 385,097 | JPEG resized on the phone |
+| VGA | 640 × 426 | 63,348 | JPEG resized on the phone |
+
+An independent readback of the saved files matched all three SHA-256 receipts. The original receipt also matched the camera transfer stream. The Sony Wi-Fi transfer marker `ORG_` was omitted from the displayed and saved filenames. The preview’s Close button returned to the catalogue, and its Import button saved the original JPEG. USB PC Remote, MTP, and a genuine ARW comparison against the card remain pending. [Sony Wi-Fi transfer guide](https://helpguide.sony.net/ilc/1810/v1/en/contents/TP0002264727.html)
 
 ## Sony α7 III hardware test
 

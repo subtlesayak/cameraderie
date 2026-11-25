@@ -7,6 +7,17 @@ import java.net.InetAddress
 import java.net.URI
 
 class SonyHttpGalleryTest {
+    @Test fun originalTransportPrefixDoesNotBecomeTheCameraOrImportFilename() {
+        val xml = didl("""<item id="1"><dc:title>DSC01234.JPG</dc:title>
+            <res size="9000000" protocolInfo="http-get:*:image/jpeg:*">http://192.168.122.1/ORG_DSC01234.JPG</res>
+            </item>""")
+        val media = SonyHttpGallery.parseBrowse(response(xml), base, gateway).items.single()
+        assertEquals("DSC01234.JPG", media.name)
+        assertEquals("DSC01234.JPG", media.importResources.single().name)
+        assertEquals("http://192.168.122.1/ORG_DSC01234.JPG", media.url)
+        assertEquals(media.url, media.importResources.single().id)
+    }
+
     @Test fun pngKeepsAnImportableNameAndIsNotOfferedAsAJpegConversion() {
         val item=didl("""<item id="png"><dc:title>PHOTO.PNG</dc:title><res size="1000" protocolInfo="http-get:*:image/png:*">http://192.168.122.1/PHOTO.PNG</res></item>""")
         val parsed=SonyHttpGallery.parseBrowse(response(item),base,gateway).items.single()

@@ -37,7 +37,7 @@ Any camera that implements a protocol supported by Cameraderie should work with 
 | DJI Osmo Action 5 Pro, Action 4, Osmo 360 | DJI R SDK over Bluetooth and USB file transfer where offered | Candidates for model-by-model testing. |
 | DJI Osmo Action 3, Osmo Nano | USB file transfer | Candidates for wired transfer testing. |
 | Sony α7 III (ILCE-7M3) | USB PC Remote, Sony Wi-Fi media transfer, and USB MTP | USB live view, autofocus, recording start and stop, Wi-Fi JPEG and video proxy imports, and USB MTP 4K video import tested on Galaxy S24 FE. |
-| Sony a6400 (ILCE-6400) | Sony media transfer over local Wi-Fi and USB MTP | Gallery adapter implemented. Physical verification pending. |
+| Sony a6400 (ILCE-6400) | Sony media transfer over local Wi-Fi and USB MTP | Wi-Fi QR pairing, saved reconnect, catalogue browsing, and Original, 2M, and VGA JPEG imports tested on Galaxy S24 FE. USB tests pending. |
 | Sony a6100 (ILCE-6100), a6600 (ILCE-6600) | Sony media transfer over local Wi-Fi and USB MTP | Candidates for the same media adapter and the general USB path. |
 | Nikon Z6III, Z8 | USB MTP/PTP | Candidates for the general USB path. |
 | Fujifilm X-T5, Canon EOS R50 | USB PTP or the camera’s photo transfer mode | Candidates for wired transfer testing. |

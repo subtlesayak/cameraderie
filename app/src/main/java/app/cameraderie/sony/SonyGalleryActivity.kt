@@ -424,7 +424,7 @@ class SonyGalleryActivity : CameraderieActivity() {
     private fun clearItems() { readAllForSessions=false;visibleItems.clear();browser.submit(emptyList(),folderName,folders.isNotEmpty(),false) }
     private fun inspect(item:Item) {
         if(busy || session==null || item.folder) return
-        browser.details(entry(item),{ save(item) },{ shareItems(listOf(item)) },{ importItems(listOf(item),chooseQuality=true) },
+        browser.details(entry(item),{ save(item) },{ importItems(listOf(item),chooseQuality=true) },
             folder={ chooseImportFolder(listOf(item)) })
     }
     private fun entry(item:Item):SonyMediaBrowser.Entry {
