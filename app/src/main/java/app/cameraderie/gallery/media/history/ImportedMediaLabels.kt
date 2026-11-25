@@ -8,13 +8,15 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object ImportedMediaLabels {
+    private fun clockOffset(offset: String) = if (offset == "Z") "UTC" else "UTC$offset"
+
     data class DateDetail(val label:String,val value:String,val note:String?=null)
     fun captureDetail(entry:ImportHistoryEntry,locale:Locale=Locale.getDefault()):DateDetail {
         val receipt=entry.receipt
         val date=receipt?.captureDate?.let { LocalDate.parse(it).format(DateTimeFormatter.ofPattern("d MMM uuuu",locale)) }
             ?: return DateDetail("Capture date","Not recorded")
         val time=receipt.captureTime?.let { LocalTime.parse(it).format(DateTimeFormatter.ofPattern("HH:mm",locale)) }
-        val offset=receipt.captureOffset?.let { " · UTC$it" }.orEmpty()
+        val offset=receipt.captureOffset?.let { " · ${clockOffset(it)}" }.orEmpty()
         val note=when {
             receipt.captureSource=="MEDIASTORE_INDEX" -> "From the phone library"
             time==null -> "Date only"
@@ -91,7 +93,7 @@ object ImportedMediaLabels {
         val date=r.captureDate?.let { LocalDate.parse(it).format(DateTimeFormatter.ofPattern("d MMM uuuu",locale)) } ?: return "Capture date not recorded"
         val time=r.captureTime?.let { " · ${LocalTime.parse(it).format(DateTimeFormatter.ofPattern("HH:mm",locale))}" }.orEmpty()
         val prefix=if(r.captureSource=="MEDIASTORE_INDEX") "Phone-indexed capture" else "Captured"
-        val clock=when { r.captureTime==null -> " · date only";r.captureOffset!=null -> " · UTC${r.captureOffset}";r.captureSource!="MEDIASTORE_INDEX" -> " · camera clock";else -> "" }
+        val clock=when { r.captureTime==null -> " · date only";r.captureOffset!=null -> " · ${clockOffset(r.captureOffset)}";r.captureSource!="MEDIASTORE_INDEX" -> " · camera clock";else -> "" }
         return "$prefix $date$time$clock"
     }
 }

@@ -31,6 +31,8 @@ Choose the adapter in Cameraderie and follow its pairing or connection prompt. T
 3. Tap a project file and choose **Move to shoot** to change its assignment. Use the shoot’s menu to edit its notes or move it earlier or later in the project.
 4. Tap a file to open it or edit a supported original video. An MP4 exported from a project appears under **Exports** in the source shoot and in Library. Tap the export to open it or return to the verified original. Pausing and resuming preserves the project association.
 
+Choose **Filter media** from the menu in Library, Projects, or a shoot. Combine camera, capture date, and file format. Library and the project overview also let you choose a shoot or **Unassigned**. Exports use the camera and capture date from their verified source when available. Earlier imports with missing metadata appear under **Camera not recorded** or **Capture date not recorded**.
+
 The [Himalayan Diaries example](WORKFLOW.md#himalayan-diaries) shows how to organize media from several cameras in one project.
 
 ## Edit a video

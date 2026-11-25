@@ -21,6 +21,14 @@ class ImportedMediaLabelsTest {
     @Test fun recoveryDateIsNotPresentedAsObservedPublicationTime() {
         assertTrue(ImportedMediaLabels.imported(entry(ImportProvenance.OFFERED_CAMERA_BYTES,kind=ImportCompletionKind.RECOVERED_VERIFIED),java.util.Locale.UK,java.time.ZoneOffset.UTC).startsWith("Recovered "))
     }
+    @Test fun utcContainerTimeUsesTheUtcLabelOnCardsAndDetails() {
+        val source = entry(ImportProvenance.DOCUMENT_BYTES, mime = "video/mp4")
+        val utc = source.copy(receipt = checkNotNull(source.receipt).copy(
+            captureTime = "14:18:53", captureOffset = "Z", captureSource = "VIDEO_CONTAINER",
+        ))
+        assertEquals("Captured 10 Jun 2026 · 14:18 · UTC", ImportedMediaLabels.captured(utc, java.util.Locale.UK))
+        assertEquals("10 Jun 2026, 14:18 · UTC", ImportedMediaLabels.captureDetail(utc, java.util.Locale.UK).value)
+    }
     @Test fun dateOnlyCaptureNeverInventsATime() {
         val text=ImportedMediaLabels.captured(entry(ImportProvenance.OFFERED_CAMERA_BYTES),java.util.Locale.UK)
         assertTrue(text.contains("date only"));assertFalse(text.contains("00:00"));assertFalse(text.contains("UTC"))

@@ -38,7 +38,7 @@ internal class SonyMediaStore(private val context:Context,injectedHistory:Import
     }
     fun port(copy:(MediaImportTransaction.Item,Uri)->MediaImportTransaction.Copied,cancelled:()->Boolean,published:(MediaImportTransaction.Item,Uri)->Unit={_,_->},capture:(MediaImportTransaction.Item)->CameraCaptureTime?={null},
         historyDraft:((MediaImportTransaction.Item,Uri)->ImportHistoryDraft)?=null,
-        documentFile:AlbumMediaFile?=null)=object:MediaImportTransaction.Port {
+        documentFile:AlbumMediaFile?=null, documentMetadata: ImportCaptureMetadata? = null)=object:MediaImportTransaction.Port {
         private fun file(item:MediaImportTransaction.Item) = documentFile?.also { check(it.name==item.name) } ?: SonyImportPlan.file(item.name)
         private val album =
             if (documentFile != null && !documentFile.image && !documentFile.video) AlbumMediaFile.DOWNLOAD_DIRECTORY
@@ -116,7 +116,7 @@ internal class SonyMediaStore(private val context:Context,injectedHistory:Import
                 }
             }
             // Index the actual capture time when available, rather than import time.
-            val metadata = ImportCaptureMetadata.read(capture(item),
+            val metadata = documentMetadata ?: ImportCaptureMetadata.read(capture(item),
                 openImage = if (plan.image) ({ resolver.openInputStream(uri) }) else null)
             val captureTime = metadata.time
             val zone = java.time.ZoneId.systemDefault()

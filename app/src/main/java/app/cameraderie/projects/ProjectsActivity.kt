@@ -20,6 +20,9 @@ import app.cameraderie.gallery.media.edit.VideoEditorActivity
 import app.cameraderie.gallery.media.history.ImportHistoryEntry
 import app.cameraderie.gallery.media.history.ImportHistoryRepository
 import app.cameraderie.gallery.media.history.ImportedImagesActivity
+import app.cameraderie.gallery.media.history.MediaFacets
+import app.cameraderie.gallery.media.history.MediaFilterDialog
+import app.cameraderie.gallery.media.history.MediaFilters
 import app.cameraderie.sony.SonyImportPreferences
 import app.cameraderie.sony.SonyScreenProtection
 import app.cameraderie.sony.SonyScreenWindows
@@ -42,6 +45,7 @@ class ProjectsActivity : CameraderieActivity() {
     private lateinit var list: ListView
     private lateinit var header: LinearLayout
     private var message = ""
+    private var filters = MediaFilters()
     private val mediaPicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val id = projectId ?: return@registerForActivityResult
         if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
@@ -60,6 +64,7 @@ class ProjectsActivity : CameraderieActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        filters = MediaFilters.restore(savedInstanceState?.getBundle(FILTERS))
         ui = UiKit(this)
         val root = ui.column().apply { setBackgroundColor(ui.tone.background) }
         root.setOnApplyWindowInsetsListener { view, insets ->
@@ -92,9 +97,18 @@ class ProjectsActivity : CameraderieActivity() {
         load()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBundle(FILTERS, filters.save())
+        super.onSaveInstanceState(outState)
+    }
+
     private data class ProjectDetails(
-        val project: Project?, val shoots: List<ProjectShoot>, val media: List<ProjectMedia>,
+        val project: Project,
+        val shoots: List<ProjectShoot>,
+        val activeShoot: ProjectShoot?,
+        val media: List<ProjectMedia>,
         val exports: List<ImportHistoryEntry>,
+        val originals: Map<String, ImportHistoryEntry>,
     )
 
     private fun load() {
@@ -103,18 +117,55 @@ class ProjectsActivity : CameraderieActivity() {
             work(store::projects, ::showProjects)
             return
         }
-        work({ ProjectDetails(store.project(id), store.shoots(id), store.media(id), history.completedProjectExports(id)) }) {
-            (project, shoots, media, exports) ->
-            val currentShoot = shoots.firstOrNull { it.id == shootId }
-            when {
-                project == null || (shootId != null && currentShoot == null) -> {
-                    toast("Project or shoot unavailable.")
-                    finish()
-                }
-                currentShoot == null -> showProject(project, shoots, media, exports)
-                else -> showShoot(project, currentShoot, shoots, media.filter { it.shootId == currentShoot.id },
-                    exports.filter { it.draft.projectExport?.shootId == currentShoot.id })
+        work({ readDetails(id) }) { details ->
+            if (details == null) {
+                toast("Project or shoot unavailable.")
+                finish()
+            } else showDetails(details)
+        }
+    }
+
+    private fun readDetails(id: String): ProjectDetails? {
+        val project = store.project(id) ?: return null
+        val shoots = store.shoots(id)
+        val activeShoot = shootId?.let { selected -> shoots.firstOrNull { it.id == selected } ?: return null }
+        val media = store.media(id).filter { activeShoot == null || it.shootId == activeShoot.id }
+        val exports = history.completedProjectExports(id)
+            .filter { activeShoot == null || it.draft.projectExport?.shootId == activeShoot.id }
+        val originals = history.store.findAll(buildSet {
+            media.forEach { add(it.importId) }
+            exports.mapNotNull { it.draft.projectExport?.sourceImportId }.forEach(::add)
+        })
+        return ProjectDetails(project, shoots, activeShoot, media, exports, originals)
+    }
+
+    private fun showDetails(details: ProjectDetails) {
+        val (project, shoots, activeShoot, media, exports, originals) = details
+        val mediaFacts = media.associateWith { item ->
+            val entry = originals[item.importId]?.takeIf { ProjectMedia.from(it)?.sha256 == item.sha256 }
+            MediaFacets.from(entry, item.name, setOfNotNull(item.shootId))
+        }
+        val exportFacts = exports.associateWith {
+            MediaFacets.forExport(it, originals, setOfNotNull(it.draft.projectExport?.shootId))
+        }
+        val visibleMedia = media.filter { filters.matches(mediaFacts.getValue(it)) }
+        val visibleExports = exports.filter { filters.matches(exportFacts.getValue(it)) }
+        val filterStatus = if (filters.count == 0) null
+            else "Showing ${visibleMedia.size + visibleExports.size} of ${media.size + exports.size} files"
+        if (activeShoot == null) {
+            showProject(project, shoots, visibleMedia, visibleExports, filterStatus)
+        } else {
+            showShoot(project, activeShoot, shoots, visibleMedia, visibleExports, filterStatus)
+        }
+        val shootNames = if (activeShoot == null) shoots.associate { it.id to it.name } else null
+        val label = if (filters.count == 0) "Filter media" else "Filter media (${filters.count})"
+        toolbar.menu.add(label).setOnMenuItemClickListener {
+            MediaFilterDialog.show(this, mediaFacts.values + exportFacts.values, shootNames, filters) {
+                filters = it
+                message = ""
+                showDetails(details)
             }
+            true
         }
     }
 
@@ -128,14 +179,15 @@ class ProjectsActivity : CameraderieActivity() {
     }
 
     private fun showProject(project: Project, shoots: List<ProjectShoot>, media: List<ProjectMedia>,
-                            exports: List<ImportHistoryEntry>) {
+                            exports: List<ImportHistoryEntry>, filterStatus: String?) {
         toolbar.title = project.name
+        toolbar.menu.clear()
         header.removeAllViews()
         ui.row(header, ui.action("New shoot", primary = true) { editShoot(project, null) },
             ui.action("Add from Library", onClick = ::pickMedia))
         ui.add(header, ui.action("Edit project") { edit(project) }, 8)
         showNotes(project.notes)
-        showStatus(media.size)
+        showStatus(media.size, filterStatus)
         val names = shoots.associate { it.id to it.name }
         setRows(buildList {
             if (shoots.isNotEmpty()) {
@@ -157,7 +209,7 @@ class ProjectsActivity : CameraderieActivity() {
     }
 
     private fun showShoot(project: Project, shoot: ProjectShoot, shoots: List<ProjectShoot>, media: List<ProjectMedia>,
-                          exports: List<ImportHistoryEntry>) {
+                          exports: List<ImportHistoryEntry>, filterStatus: String?) {
         toolbar.title = shoot.name
         toolbar.subtitle = project.name
         toolbar.menu.clear()
@@ -174,7 +226,7 @@ class ProjectsActivity : CameraderieActivity() {
         header.removeAllViews()
         ui.add(header, ui.action("Add from Library", primary = true, onClick = ::pickMedia))
         showNotes(shoot.notes)
-        showStatus(media.size)
+        showStatus(media.size, filterStatus)
         setRows(media.map { item -> Row(item.name) { showMediaActions(project.id, item, shoots) } } + exportRows(exports))
     }
 
@@ -216,8 +268,10 @@ class ProjectsActivity : CameraderieActivity() {
         ui.add(header, ui.text(notes).apply { setTextIsSelectable(true) }, 4)
     }
 
-    private fun showStatus(count: Int) {
-        ui.add(header, ui.text(message.ifBlank { fileCount(count) }, secondary = true).apply {
+    private fun showStatus(count: Int, filterStatus: String?) {
+        val summary = listOfNotNull(message.takeIf(String::isNotBlank), filterStatus)
+            .joinToString(" · ").ifBlank { fileCount(count) }
+        ui.add(header, ui.text(summary, secondary = true).apply {
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }, 12)
     }
@@ -381,5 +435,6 @@ class ProjectsActivity : CameraderieActivity() {
     private companion object {
         const val PROJECT_ID = "projectId"
         const val SHOOT_ID = "shootId"
+        const val FILTERS = "mediaFilters"
     }
 }

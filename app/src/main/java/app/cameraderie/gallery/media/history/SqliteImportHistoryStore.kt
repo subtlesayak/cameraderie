@@ -139,6 +139,19 @@ class SqliteImportHistoryStore(context:Context,name:String="import_history.db"):
         check(inserted>=0 || containsUri(draft.uri))
     }
     override fun find(id:String):ImportHistoryEntry?=find(helper.readableDatabase,id)
+    override fun findAll(ids: Set<String>): Map<String, ImportHistoryEntry> = buildMap {
+        for (batch in ids.chunked(400)) {
+            val slots = batch.joinToString { "?" }
+            helper.readableDatabase.query("imports", null, "id IN ($slots)", batch.toTypedArray(),
+                null, null, null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val entry = row(cursor)
+                    put(entry.draft.id, entry)
+                }
+            }
+        }
+    }
+
     private fun find(db:SQLiteDatabase,id:String):ImportHistoryEntry?=db.query("imports",null,"id=?",arrayOf(id),null,null,null,"1").use { if(it.moveToFirst()) row(it) else null }
     private fun rows(cursor:Cursor):List<ImportHistoryEntry> = buildList { while(cursor.moveToNext())add(row(cursor)) }
     private fun row(c:Cursor):ImportHistoryEntry {

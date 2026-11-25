@@ -15,6 +15,13 @@ internal data class Project(val id: String, val name: String, val notes: String,
 
 internal data class ProjectShoot(val id: String, val name: String, val notes: String, val mediaCount: Int)
 
+internal data class LibraryShoot(
+    val id: String,
+    val label: String,
+    val importId: String?,
+    val sha256: String?,
+)
+
 internal data class ProjectMedia(val importId: String, val sha256: String, val name: String, val shootId: String? = null) {
     companion object {
         fun from(entry: ImportHistoryEntry): ProjectMedia? {
@@ -147,6 +154,17 @@ internal class ProjectStore(context: Context, name: String = "projects.db") : Cl
             WHERE m.project_id=? ORDER BY m.rowid""",
         arrayOf(id),
     ).use { readRows(it) { ProjectMedia(getString(0), getString(1), getString(2), getString(3)) } }
+
+    fun libraryShoots(): List<LibraryShoot> = helper.readableDatabase.rawQuery(
+        """SELECT s.id, p.name, s.name, m.import_id, m.sha256 FROM projects p
+            JOIN project_shoots s ON s.project_id=p.id
+            LEFT JOIN shoot_media sm ON sm.project_id=s.project_id AND sm.shoot_id=s.id
+            LEFT JOIN project_media m ON m.project_id=sm.project_id AND m.import_id=sm.import_id
+            ORDER BY p.name COLLATE NOCASE, p.id, s.position, s.id""",
+        null,
+    ).use { cursor ->
+        readRows(cursor) { LibraryShoot(getString(0), getString(1) + " · " + getString(2), getString(3), getString(4)) }
+    }
 
     fun exportOrigin(projectId: String, source: ImportHistoryEntry): ProjectExportOrigin? {
         val media = ProjectMedia.from(source) ?: return null

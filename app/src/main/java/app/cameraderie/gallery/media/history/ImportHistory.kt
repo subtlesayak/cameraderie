@@ -68,6 +68,7 @@ interface ImportHistoryStore {
     fun completed(offset:Int=0,limit:Int=100):List<ImportHistoryEntry>
     fun completedAfterId(afterId:String?=null,limit:Int=100):List<ImportHistoryEntry>
     fun find(id:String):ImportHistoryEntry?
+    fun findAll(ids: Set<String>): Map<String, ImportHistoryEntry> = ids.mapNotNull(::find).associateBy { it.draft.id }
     fun projectExports(projectId: String): List<ImportHistoryEntry> = emptyList()
     fun countCompleted():Int
     fun containsUri(uri:String):Boolean

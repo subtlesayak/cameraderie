@@ -21,6 +21,7 @@ import app.cameraderie.gallery.media.DocumentImportActivity
 import app.cameraderie.gallery.media.edit.VideoEditorActivity
 import app.cameraderie.gallery.media.edit.VerifiedVideo
 import app.cameraderie.projects.ProjectMedia
+import app.cameraderie.projects.ProjectStore
 import app.cameraderie.sony.SonyGalleryLayout
 import app.cameraderie.sony.SonyImportPreferences
 import app.cameraderie.sony.SonyScreenProtection
@@ -51,6 +52,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
     private lateinit var shareButton:android.view.MenuItem
     private lateinit var clearButton:android.view.MenuItem
     private lateinit var layoutButton:android.view.MenuItem
+    private lateinit var filterButton: android.view.MenuItem
     private lateinit var recycler:RecyclerView
     private lateinit var grid:GridLayoutManager
     private lateinit var adapter:MediaAdapter
@@ -69,7 +71,10 @@ open class ImportedImagesActivity:CameraderieActivity() {
     private var busy=false
     private lateinit var emptyImport: android.widget.Button
     private var resumed=false
-    private var filter=0
+    private var filters = MediaFilters()
+    private var facets = emptyMap<String, MediaFacets>()
+    private var shootNames = emptyMap<String, String>()
+    private var historyStatus = ""
     private var mode=SonyGalleryLayout.Mode.COMPACT
     private var detail:Dialog?=null
     private var unavailable=mutableSetOf<String>()
@@ -79,7 +84,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
         selecting = pickingForProject || savedInstanceState?.getBoolean("selecting") == true
         selected.addAll(savedInstanceState?.getStringArrayList("selection").orEmpty().take(500))
         mode=runCatching { SonyGalleryLayout.Mode.valueOf(savedInstanceState?.getString("layout").orEmpty()) }.getOrDefault(mode)
-        filter=savedInstanceState?.getInt("filter")?.coerceIn(0,4) ?: 0
+        filters = MediaFilters.restore(savedInstanceState?.getBundle("mediaFilters"))
         protect()
         val root=object:LinearLayout(this) {
             override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int) {
@@ -118,7 +123,7 @@ open class ImportedImagesActivity:CameraderieActivity() {
                 }
             }
             clearButton=menu.add("Clear selection").apply { setOnMenuItemClickListener { selected.clear();refreshSelection();true } }
-            menu.add("Filter").setOnMenuItemClickListener { chooseFilter();true }
+            filterButton = menu.add("Filter media").setOnMenuItemClickListener { chooseFilter(); true }
             layoutButton=menu.add("Layout").apply { setOnMenuItemClickListener { chooseLayout();true } }
         }
         ui.add(root,toolbar)
@@ -145,16 +150,18 @@ open class ImportedImagesActivity:CameraderieActivity() {
     override fun onPause() { resumed=false;super.onPause() }
     override fun onStop() { generation++;cancelTask();detail?.dismiss();loading=false;busy=false;super.onStop() }
     override fun onSaveInstanceState(outState:Bundle) {
-        outState.putBoolean("selecting",selecting);outState.putStringArrayList("selection",ArrayList(selected));outState.putString("layout",mode.name);outState.putInt("filter",filter)
+        outState.putBoolean("selecting",selecting);outState.putStringArrayList("selection",ArrayList(selected));outState.putString("layout",mode.name);outState.putBundle("mediaFilters", filters.save())
         super.onSaveInstanceState(outState)
     }
     private fun cancelTask() { actionSignal?.cancel();actionSignal=null;task?.cancel(true);task=null }
     private fun chooseFilter() {
-        val options=arrayOf("All imports", "Photos and images", "Videos", "Audio", "GPX tracks")
-        MaterialAlertDialogBuilder(this).setTitle("Show imported media").setSingleChoiceItems(options,filter) { dialog,index ->
-            filter=index;dialog.dismiss();applyFilter()
-        }.setNegativeButton("Close",null).create().also { SonyScreenWindows.showMedia(it,this) }
+        if (loading || busy) return
+        MediaFilterDialog.show(this, facets.values, shootNames, filters) {
+            filters = it
+            applyFilter()
+        }
     }
+
     private fun live(token:Int)=generation==token && !isDestroyed
     private fun load() {
         val token=++generation;cancelTask();loading=true;busy=false;progress.visibility=View.VISIBLE
@@ -164,15 +171,31 @@ open class ImportedImagesActivity:CameraderieActivity() {
             try {
                 val recovery=repository.reconcile { !live(token) || Thread.currentThread().isInterrupted }
                 val rows=repository.list { !live(token) || Thread.currentThread().isInterrupted }
+                val entries = if (pickingForProject) rows.filter { ProjectMedia.from(it) != null } else rows
+                val originals = rows.associateBy { it.draft.id }
+                val shoots = runCatching { ProjectStore(applicationContext).use { it.libraryShoots() } }.getOrDefault(emptyList())
+                val names = shoots.associate { it.id to it.label }
+                val assignments = shoots.filter { it.importId != null }.groupBy { it.importId }
+                val availableFacets = entries.associate { entry ->
+                    val id = entry.draft.id
+                    val memberships = assignments[id].orEmpty().filter { it.sha256 == entry.receipt?.sha256 }
+                        .mapTo(mutableSetOf()) { it.id }
+                    entry.draft.projectExport?.shootId?.takeIf(names::containsKey)?.let(memberships::add)
+                    val facts = if (entry.draft.projectExport != null) {
+                        MediaFacets.forExport(entry, originals, memberships)
+                    } else MediaFacets.from(entry, entry.receipt?.displayName ?: entry.draft.displayName, memberships)
+                    id to facts
+                }
                 main.post {
                     if(!live(token))return@post
-                    records = if (pickingForProject) rows.filter { ProjectMedia.from(it) != null } else rows
+                    records = entries
+                    facets = availableFacets
+                    shootNames = names
                     unavailable.clear();selected.retainAll(records.map { it.draft.id }.toSet());loading=false;progress.visibility=View.GONE
-                    val count = if (records.size == 1) "1 saved import" else "${records.size} saved imports"
-                    status.text = when {
-                        !recovery.ran -> "$count · Import in progress"
-                        recovery.unresolved > 0 -> "$count · ${recovery.unresolved} unfinished imports"
-                        else -> count
+                    historyStatus = when {
+                        !recovery.ran -> "Import in progress"
+                        recovery.unresolved > 0 -> "${recovery.unresolved} unfinished imports"
+                        else -> ""
                     }
                     applyFilter()
                 }
@@ -185,16 +208,13 @@ open class ImportedImagesActivity:CameraderieActivity() {
         }
     }
     private fun applyFilter() {
-        showing = records.filter { row ->
-            val mime = row.receipt?.mime.orEmpty()
-            when (filter) {
-                1 -> mime.startsWith("image/")
-                2 -> mime.startsWith("video/")
-                3 -> mime.startsWith("audio/")
-                4 -> mime == "application/gpx+xml"
-                else -> true
-            }
+        showing = if (filters.count == 0) records else records.filter { filters.matches(facets.getValue(it.draft.id)) }
+        val count = when {
+            filters.count > 0 -> "Showing ${showing.size} of ${records.size} imports"
+            records.size == 1 -> "1 saved import"
+            else -> "${records.size} saved imports"
         }
+        status.text = listOf(count, historyStatus).filter(String::isNotBlank).joinToString(" · ")
         empty.text = when {
             records.isEmpty() && pickingForProject -> "No verified imports yet."
             records.isEmpty() -> "No saved imports yet."
@@ -222,7 +242,9 @@ open class ImportedImagesActivity:CameraderieActivity() {
         selectButton.title=if(selecting) "Done" else "Select files"
         selectButton.setIcon(if(selecting)R.drawable.ic_close else R.drawable.ic_select_files)
         toolbar.title=if(selecting) "${selected.size} selected" else "Library"
-        toolbar.subtitle=if(selecting) "Library" else when(filter) { 1 -> "Photos and images · on this phone";2 -> "Videos · on this phone";else -> "On this phone" }
+        toolbar.subtitle = if (selecting) "Library" else "On this phone"
+        filterButton.title = if (filters.count == 0) "Filter media" else "Filter media (${filters.count})"
+        filterButton.isEnabled = !loading && !busy && records.isNotEmpty()
         selectButton.isEnabled=!loading && !busy && records.isNotEmpty()
         selectButton.contentDescription=if(loading)"Select files, available when local history finishes loading" else if(selecting)"Done selecting files. ${selected.size} selected. Maximum 500 files." else "Select files"
         selectButton.isVisible = !pickingForProject

@@ -36,4 +36,6 @@ For the linked-export check, a synthetic video was trimmed and exported as a sep
 
 The audio, track, and Insta360 file acceptance used synthetic WAV, GPX, INSV, and INSP fixtures on Android 12. The native test verified the saved bytes, filenames, duplicate detection, and persistence of the shoot assignments after reopening the project database. A separate file-picker run imported WAV, GPX, and INSV together from one folder. Physical X4 card and USB import and 360° playback remain to be verified.
 
+The filter check used the verified Sony a6400 JPEG and DJI Osmo Action 6 MP4 imported through Android’s file picker. The app recorded each camera and capture date from the file. With networking off after a cold restart, the Sony JPEG appeared in Day 1 and the Action 6 clip in Day 2. Combining camera, capture date, format, and shoot in the project showed only the matching clip. The Day 2 shoot and the Library shoot filter also returned that clip. Independent readback confirmed both saved files matched their original bytes and SHA-256 receipts.
+
 See the [user guide](USAGE.md) for workflows available in the app and the [compatibility matrix](COMPATIBILITY.md) for connection and hardware test results.

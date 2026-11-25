@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import app.cameraderie.gallery.media.history.ImportCaptureMetadata
 import app.cameraderie.gallery.media.history.ImportHistoryDraft
 import app.cameraderie.gallery.media.history.ImportHistoryGate
 import app.cameraderie.gallery.media.history.ImportProvenance
@@ -78,10 +79,11 @@ internal class DocumentAlbumImport(
                         summary = summary.copy(duplicates = summary.duplicates + 1)
                         continue
                     }
+                    val metadata = ImportCaptureMetadata.readDocument(file, staged)
                     val result = if (folder != null) {
                         val sourceId = sha256().digest(uri.toString().toByteArray()).hex()
                         ImportHistoryGate.process.importing {
-                            folder.publish(file,copied,sourceId,history,cancelled) { destination ->
+                            folder.publish(file,copied,sourceId,history,cancelled,metadata) { destination ->
                                 checkNotNull(resolver.openOutputStream(destination,"w")).use { output ->
                                     staged.inputStream().use { input -> transfer(input,output,copied.bytes,cancelled) }
                                 }
@@ -89,7 +91,7 @@ internal class DocumentAlbumImport(
                         }
                     } else {
                         check(scratch.usableSpace >= copied.bytes)
-                        publish(uri, file, staged, copied, cancelled)
+                        publish(uri, file, staged, copied, metadata, cancelled)
                     }
                     if (result.completed.isNotEmpty()) {
                         newHashes.add(hash)
@@ -124,7 +126,7 @@ internal class DocumentAlbumImport(
     }
 
     private fun publish(source: Uri, file: AlbumMediaFile, staged: File, copied: MediaImportTransaction.Copied,
-        cancelled: () -> Boolean): MediaImportTransaction.Result {
+        metadata: ImportCaptureMetadata, cancelled: () -> Boolean): MediaImportTransaction.Result {
         val sourceId = sha256().digest(source.toString().toByteArray()).hex()
         val item = MediaImportTransaction.Item(sourceId, file.name, copied.bytes)
         val port = SonyMediaStore(app, history).port(
@@ -137,10 +139,11 @@ internal class DocumentAlbumImport(
             cancelled = cancelled,
             historyDraft = { _, destination ->
                 ImportHistoryDraft(UUID.randomUUID().toString(), destination.toString(), item.name, item.bytes,
-                    System.currentTimeMillis(), ImportProvenance.DOCUMENT_BYTES, sourceScopeKind = "ANDROID_DOCUMENT",
+                    System.currentTimeMillis(), ImportProvenance.DOCUMENT_BYTES, cameraModel = metadata.cameraModel,
+                    sourceScopeKind = "ANDROID_DOCUMENT",
                     sourceItemReference = sourceId)
             },
-            documentFile = file
+            documentFile = file, documentMetadata = metadata
         )
         return ImportHistoryGate.process.importing { MediaImportTransaction().run(listOf(item), port, cancelled) }
     }

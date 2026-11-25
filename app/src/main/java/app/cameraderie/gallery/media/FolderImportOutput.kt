@@ -47,17 +47,20 @@ internal class FolderImportOutput(private val context: Context, private val tree
     }
 
     fun publish(file: AlbumMediaFile, copied: MediaImportTransaction.Copied, sourceId: String,
-        history: ImportHistoryRepository, cancelled: () -> Boolean, write: (Uri) -> Unit): MediaImportTransaction.Result {
+        history: ImportHistoryRepository, cancelled: () -> Boolean, metadata: ImportCaptureMetadata,
+        write: (Uri) -> Unit): MediaImportTransaction.Result {
         val item=MediaImportTransaction.Item(sourceId,file.name,copied.bytes)
         return publish(file,item,history,cancelled,{ uri -> write(uri); copied },
             draftFor={ id, uri, name, folder -> ImportHistoryDraft(id,uri,name,item.bytes,System.currentTimeMillis(),
-                ImportProvenance.DOCUMENT_BYTES,sourceScopeKind="ANDROID_DOCUMENT",sourceItemReference=sourceId,folderTree=folder) })
+                ImportProvenance.DOCUMENT_BYTES, cameraModel=metadata.cameraModel,sourceScopeKind="ANDROID_DOCUMENT",
+                sourceItemReference=sourceId,folderTree=folder) }, documentMetadata=metadata)
     }
 
     fun publish(file: AlbumMediaFile, item: MediaImportTransaction.Item, history: ImportHistoryRepository,
         cancelled: () -> Boolean, copy: (Uri) -> MediaImportTransaction.Copied,
         draftFor: (String,String,String,String) -> ImportHistoryDraft, validate: (Uri) -> Unit = {},
         cameraTime: CameraCaptureTime? = null,
+        documentMetadata: ImportCaptureMetadata? = null,
         published: (Uri) -> Unit = {}): MediaImportTransaction.Result {
         checkWritable()
         val id = UUID.randomUUID().toString()
@@ -101,7 +104,7 @@ internal class FolderImportOutput(private val context: Context, private val tree
                 val followUp=runCatching { published(Uri.parse(duplicate.draft.uri)) }.isFailure
                 return MediaImportTransaction.Result(listOf(item.id),followUpFailed=followUp)
             }
-            val metadata = ImportCaptureMetadata.read(cameraTime,
+            val metadata = documentMetadata ?: ImportCaptureMetadata.read(cameraTime,
                 openImage = if (file.mime.startsWith("image/")) ({ resolver.openInputStream(pending) }) else null)
             val receipt = metadata.describe(ImportHistoryReceipt(item.bytes, hash, file.mime, true,
                 displayName = finalName, verifiedFolderFile = verifiedFile))

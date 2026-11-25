@@ -84,6 +84,14 @@ class ProjectStoreNativeTest {
                 assertEquals(ProjectMedia.from(photo), moved.copy(shootId = null))
                 assertEquals(pass, moved.shootId)
                 assertEquals(4, store.project(project)?.mediaCount)
+                val library = store.libraryShoots()
+                val assignments = library.filter { it.importId != null }.associate { it.importId to it.id }
+                assertEquals(mapOf(photo.draft.id to pass, video.draft.id to pass,
+                    clip.draft.id to departure, audio.draft.id to departure), assignments)
+                assertEquals("Himalayan Diaries · Day 2 · Mountain pass",
+                    library.first { it.id == pass }.label)
+                assertEquals(photo.receipt?.sha256, library.single { it.importId == photo.draft.id }.sha256)
+                assertEquals("Other project · Unit A", library.single { it.importId == null }.label)
                 store.moveMedia(project, photo.draft.id, null)
                 assertNull(store.media(project).first().shootId)
                 store.removeMedia(project, video.draft.id)
