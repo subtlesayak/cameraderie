@@ -70,6 +70,7 @@ class VideoEditorActivity : CameraderieActivity() {
     private var pendingLut: Uri? = null
     private var pendingLutFolder: Uri? = null
     private var pendingSliders: FloatArray? = null
+    private var pendingResolveDestination: Uri? = null
     private var interruptedExport = false
     private var crop = CropSelection.FULL
     private var cropping = false
@@ -110,6 +111,7 @@ class VideoEditorActivity : CameraderieActivity() {
     private lateinit var cancel: MaterialButton
     private lateinit var frame: MaterialButton
     private lateinit var ride: MaterialButton
+    private lateinit var resolvePackage: MaterialButton
 
     private val lutPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -122,8 +124,16 @@ class VideoEditorActivity : CameraderieActivity() {
         }
     }
 
+    private val resolveDestination = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) {
+            pendingResolveDestination = uri
+            saveResolvePackage()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingResolveDestination = savedInstanceState?.getString(RESOLVE_DESTINATION)?.let(Uri::parse)
         pendingSliders = savedInstanceState?.getFloatArray(SLIDER_VALUES)
         pendingLut = savedInstanceState?.getString(LUT_URI)?.let(Uri::parse)
         pendingLutFolder = savedInstanceState?.getString(LUT_FOLDER_URI)?.let(Uri::parse)
@@ -182,9 +192,10 @@ class VideoEditorActivity : CameraderieActivity() {
                     val restoredFolder = pendingLutFolder
                     pendingLutFolder = null
                     if (video.acceptsRec709Lut) {
-                        if (restoredFolder != null) findLuts(restoredFolder)
+                        if (restoredFolder != null && pendingResolveDestination == null) findLuts(restoredFolder)
                         else if (restoredLut != null) loadLut(restoredLut)
                     }
+                    saveResolvePackage()
                 }, onFailure = { error ->
                     Log.w(TAG, "Original could not be opened", error)
                     setState(State.UNAVAILABLE, (error as? IOException)?.message ?: "Couldn’t open the verified original.")
@@ -196,6 +207,7 @@ class VideoEditorActivity : CameraderieActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putFloatArray(SLIDER_VALUES, if (original == null) pendingSliders else trimSlider.values.toFloatArray())
         outState.putFloatArray(CROP_BOX, crop.savedValues())
+        outState.putString(RESOLVE_DESTINATION, pendingResolveDestination?.toString())
         outState.putBoolean(CROP_ACTIVE, cropping)
         outState.putString(OUTPUT_FORMAT, format.name)
         outState.putString(LUT_URI, (pendingLut ?: lutUri)?.toString())
@@ -291,6 +303,8 @@ class VideoEditorActivity : CameraderieActivity() {
         formatButton = ui.action("") { chooseFormat() }
         ui.add(output, formatButton)
         updateFormatLabel()
+        resolvePackage = ui.action("Save Resolve package") { resolveDestination.launch("Cameraderie-Resolve.zip") }
+        ui.add(options, resolvePackage, 12)
 
         val footer = ui.column().apply {
             setBackgroundColor(ui.tone.background)
@@ -484,6 +498,7 @@ class VideoEditorActivity : CameraderieActivity() {
         updateCropControls()
         frame.isEnabled = ready
         ride.isEnabled = ready
+        resolvePackage.isEnabled = ready
         formatButton.isEnabled = ready
         preview.isEnabled = ready
         chooseLut.isEnabled = ready
@@ -598,7 +613,13 @@ class VideoEditorActivity : CameraderieActivity() {
                     if (previewEdit?.lut != null) showPreview(null)
                 }
                 updateLut()
-                setState(State.READY, if (loaded.isSuccess) "" else "Choose a valid 3D .cube LUT.")
+                if (loaded.isFailure && pendingResolveDestination != null) {
+                    pendingResolveDestination = null
+                    setState(State.READY, "The LUT couldn’t be restored. Choose it again before saving the package.")
+                } else {
+                    setState(State.READY, if (loaded.isSuccess) "" else "Choose a valid 3D .cube LUT.")
+                    saveResolvePackage()
+                }
             }
         }
     }
@@ -646,6 +667,23 @@ class VideoEditorActivity : CameraderieActivity() {
 
     private fun originalPlayhead(video: VerifiedVideo): Long =
         ((player?.currentPosition ?: 0L) + (previewEdit?.trim?.startMs ?: 0L)).coerceIn(0, video.durationMs - 1)
+
+    private fun saveResolvePackage() {
+        val destination = pendingResolveDestination ?: return
+        val video = original ?: return
+        if (state != State.READY) return
+        pendingResolveDestination = null
+        val edit = settings() ?: return
+        setState(State.SAVING, "Saving the Resolve package…")
+        worker.execute {
+            val result = runCatching { ResolvePackage.save(this, destination, video, edit) { cancelOnExit.isCanceled } }
+            deliver {
+                result.exceptionOrNull()?.let { Log.w(TAG, "Resolve package could not be saved", it) }
+                setState(State.READY, if (result.isSuccess) "Resolve package saved and verified."
+                    else "Couldn’t verify the Resolve package. Check the destination and ride files, then try again.")
+            }
+        }
+    }
 
     private fun saveFrame() {
         val video = original ?: return
@@ -873,6 +911,7 @@ class VideoEditorActivity : CameraderieActivity() {
         private const val CROP_ACTIVE = "crop-active"
         private const val OUTPUT_FORMAT = "output-format"
         private const val LUT_URI = "lut-uri"
+        private const val RESOLVE_DESTINATION = "resolve-destination"
         private const val LUT_FOLDER_URI = "lut-folder-uri"
         private const val EXPORT_ACTIVE = "export-active"
 

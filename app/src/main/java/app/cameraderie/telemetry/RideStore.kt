@@ -13,9 +13,8 @@ import java.security.MessageDigest
 import java.time.Instant
 
 internal class RideStore(private val context: Context, sourceHash: String) {
-    private val directory = File(context.noBackupFilesDir, "ride-telemetry/$sourceHash")
+    private val directory = rideDirectory(context, sourceHash)
     private val index = AtomicFile(File(directory, "alignment.json"))
-    init { require(hashPattern.matches(sourceHash)) }
 
     data class Ride(val name: String, val format: RideFormat, val hash: String, val timeline: RideTimeline,
         val capture: Instant?, val offsetMs: Long = 0, val markers: List<Long> = emptyList())
@@ -79,7 +78,34 @@ internal class RideStore(private val context: Context, sourceHash: String) {
         }
     }
 
+    internal data class ExportSnapshot(
+        val extension: String, val track: ByteArray, val alignment: ByteArray,
+        val offsetMs: Long, val markers: List<Long>,
+    )
+
     companion object {
+        // Preserve the saved alignment document, including fields written by newer versions.
+        fun exportSnapshot(context: Context, sourceHash: String): ExportSnapshot? {
+            val directory = rideDirectory(context, sourceHash)
+            val alignment = try {
+                AtomicFile(File(directory, "alignment.json")).openRead().use { it.readBounded(256 * 1024) }
+            } catch (_: FileNotFoundException) { return null }
+            val data = JSONObject(alignment.toString(Charsets.UTF_8))
+            check(data.getInt("version") == 1 && data.getString("originalVideoSha256") == sourceHash)
+            val hash = data.getString("sha256").also { check(hashPattern.matches(it)) }
+            val format = RideFormat.valueOf(data.getString("format"))
+            val track = File(directory, "$hash.${format.extension}").inputStream().use { it.readBounded(MAX_BYTES) }
+            check(digest(track) == hash)
+            val markers = listOfNotNull(data.optJSONArray("highlightMarkersMs"), data.optJSONArray("rideHighlightMarkersMs"))
+                .flatMap { list -> List(list.length()) { list.getLong(it) } }.distinct().sorted()
+            return ExportSnapshot(format.extension, track, alignment, data.getLong("offsetMs"), markers)
+        }
+
+        private fun rideDirectory(context: Context, sourceHash: String): File {
+            require(hashPattern.matches(sourceHash))
+            return File(context.noBackupFilesDir, "ride-telemetry/$sourceHash")
+        }
+
         private const val MAX_BYTES = 16 * 1024 * 1024
         private val hashPattern = Regex("[0-9a-f]{64}")
         private val payloadPattern = Regex("[0-9a-f]{64}\\.(gpx|csv|json)")

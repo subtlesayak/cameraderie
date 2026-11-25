@@ -40,6 +40,15 @@ The [Himalayan Diaries example](WORKFLOW.md#himalayan-diaries) shows how to orga
 
 Open a verified original from **Library** and tap **Edit video**. Set the crop directly in the preview and drag the two trim handles to choose the range. Use **Find LUT** to choose a `.cube` file and **Video format** to select the encoder. The app shows Main 10 availability for the device and source. **Export MP4** publishes a separate file. When a compatible checkpoint is available, **Resume export** continues it. You can start a fresh export if the checkpoint fails verification.
 
+## Send a cut to DaVinci Resolve
+
+1. Open a verified original from a shoot or Library and set the trim in the video editor. Choose **Save Resolve package** and save the ZIP to a location you can open on your computer.
+2. Unzip it. Put the original, with its exact filename, in a `media` folder beside the timeline files. Compare the source SHA-256 with `manifest.json` before relinking.
+3. Import `timeline.otio` in Resolve. `timeline.xml` is the Final Cut Pro 7 XML fallback. Relink to the original if Resolve prompts for media. Both timelines use frame-rounded versions of the cut and include source audio when present. The manifest also records the exact trim in milliseconds.
+4. Apply `look.cube` and the crop settings in the manifest when you want to reproduce the phone edit. If a ride is attached, the `ride` folder contains the original track and its saved alignment. Highlight markers inside the selected trim are placed on the exported timeline.
+
+In GPStitch, use the exported GPX for a transparent overlay. A ride sample’s position on the cut is its timestamp minus the saved clip start, plus the saved ride offset, minus the trim start. Use the alignment JSON to check matching events in the video and track before placing the rendered overlay in Resolve. [GPStitch overlay workflow](https://github.com/Romancha/GPStitch#overlay-only-mode) · [Resolve timeline import guide](https://documents.blackmagicdesign.com/UserManuals/DaVinciResolveReferenceManual.pdf)
+
 ## Attach ride telemetry
 
 Open **Ride telemetry** from the editor and attach a GPX track or route, a CSV with a timestamp column, or a JSON sample array. Timestamp fields such as `time`, `timestamp`, and `timestamp_ms` accept ISO 8601 timestamps with offsets or Unix timestamps in seconds or milliseconds.
