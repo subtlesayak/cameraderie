@@ -424,8 +424,7 @@ class SonyGalleryActivity : CameraderieActivity() {
     private fun clearItems() { readAllForSessions=false;visibleItems.clear();browser.submit(emptyList(),folderName,folders.isNotEmpty(),false) }
     private fun inspect(item:Item) {
         if(busy || session==null || item.folder) return
-        browser.details(entry(item),{ save(item) },{ importItems(listOf(item),chooseQuality=true) },
-            folder={ chooseImportFolder(listOf(item)) })
+        browser.details(entry(item)) { save(item) }
     }
     private fun entry(item:Item):SonyMediaBrowser.Entry {
         val current=session;val token=generation

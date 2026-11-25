@@ -3,7 +3,6 @@ package app.cameraderie.sony
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Bitmap
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
@@ -292,7 +291,7 @@ internal class SonyMediaBrowser(
     private var currentFolder="Camera library"
     fun reset() { sessionPicker.close();dialog?.dismiss();dialog=null;loader.reset();selecting=false;selection.clear();refreshSelection() }
     override fun close() { closed=true;reset();recycler.adapter=null;loader.close() }
-    fun details(item:Entry,save:()->Unit,options:()->Unit={},folder:(()->Unit)?=null) {
+    fun details(item:Entry,save:()->Unit) {
         if(busy) return
         dialog?.dismiss()
         val body=ui.column().apply { setPadding(ui.dp(24),0,ui.dp(24),ui.dp(16)) }
@@ -306,31 +305,11 @@ internal class SonyMediaBrowser(
         if(showQualityOptions) {
             ui.add(body,ui.text("Preview is separate from the file offered for import. Sony can offer a JPEG conversion instead of a card-original ARW.",UiKit.Type.small,secondary=true),8)
             ui.add(body,ui.text("Import quality: ${SonyImportPreferences(context).choice.label}",UiKit.Type.small,secondary=true),8)
-            ui.add(body,ui.action("Choose quality for this import…") { dialog?.dismiss();options() },8)
         }
-        if(item.downloadable && folder!=null)ui.add(body,ui.action("Import to folder") { dialog?.dismiss();folder() },8)
         val scroll=ScrollView(context).apply { addView(body) }
-        val close = com.google.android.material.button.MaterialButton(
-            context, null, com.google.android.material.R.attr.materialIconButtonStyle,
-        ).apply {
-            setIconResource(app.cameraderie.R.drawable.ic_close)
-            contentDescription = "Close"
-        }
-        val heading = LinearLayout(context).apply {
-            orientation = HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPaddingRelative(ui.dp(24), ui.dp(12), ui.dp(12), ui.dp(8))
-            val name = ui.text(item.name, UiKit.Type.section, bold = true).apply {
-                isAccessibilityHeading = true
-                maxLines = 2
-                ellipsize = android.text.TextUtils.TruncateAt.END
-            }
-            addView(name, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
-            addView(close, LayoutParams(ui.dp(48), ui.dp(48)).apply { marginStart = ui.dp(8) })
-        }
+        val heading = ui.dialogHeader(item.name) { dialog?.dismiss() }
         val opened = MaterialAlertDialogBuilder(context).setCustomTitle(heading).setView(scroll)
             .setPositiveButton("Import") { _, _ -> save() }.create()
-        close.setOnClickListener { opened.dismiss() }
         var request:Closeable?=null
         opened.setOnDismissListener { request?.close();if(dialog===opened) dialog=null }
         dialog=opened;SonyScreenWindows.showMedia(opened,context);opened.getButton(-1).isEnabled=item.downloadable

@@ -3,6 +3,7 @@ package app.cameraderie.ui
 import android.content.Context
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -36,6 +37,23 @@ class UiKit(private val context: Context) {
         setLineSpacing(0f,if(size <= Type.body) 1.4f else 1.15f)
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG
         breakStrategy = android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY
+    }
+    internal fun dialogHeader(title: String, onClose: () -> Unit) = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPaddingRelative(dp(24), dp(12), dp(12), dp(8))
+        val name = text(title, Type.section, bold = true).apply {
+            isAccessibilityHeading = true
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+        }
+        val close = MaterialButton(context, null, com.google.android.material.R.attr.materialIconButtonStyle).apply {
+            setIconResource(R.drawable.ic_close)
+            contentDescription = "Close"
+            setOnClickListener { onClose() }
+        }
+        addView(name, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        addView(close, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(8) })
     }
     fun gap(parent: LinearLayout, height: Int) { parent.addView(View(context),LinearLayout.LayoutParams(1,dp(height))) }
     fun add(parent: LinearLayout, child: View, top: Int = 0) {

@@ -366,8 +366,9 @@ class GalleryMediaActivity:CameraderieActivity() {
             }
         }
         val scroll=ScrollView(this).apply { addView(body) }
-        val opened=MaterialAlertDialogBuilder(this).setTitle(item.media.name).setView(scroll).setNegativeButton("Close",null)
-            .setPositiveButton("Import original") { _,_ ->
+        val heading = ui.dialogHeader(item.media.name) { dialog?.dismiss() }
+        val opened = MaterialAlertDialogBuilder(this).setCustomTitle(heading).setView(scroll)
+            .setPositiveButton("Import") { _,_ ->
                 if(current.importGalleryOriginal(item)!=true)Toast.makeText(this,"Finish loading the complete library, or refresh changed media before importing.",Toast.LENGTH_LONG).show()
                 render()
             }.create()

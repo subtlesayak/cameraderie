@@ -945,6 +945,58 @@ class SonyMediaNativeTest {
         } };checkNotNull(outcome).getOrThrow()
     }
 
+    @Test fun photoPreviewHasOnlyImportAndATopRightCloseButton() {
+        val instrumentation = NativeChecks.instance
+        val activity = instrumentation.startActivitySync(Intent(context, app.cameraderie.MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS))
+        val imported = java.util.concurrent.CountDownLatch(1)
+        val entry = SonyMediaBrowser.Entry("fixture", "Preview fixture.JPG", 100, false, true, { null }, { null })
+        var browser: SonyMediaBrowser? = null
+
+        fun nodes(node: android.view.accessibility.AccessibilityNodeInfo): Sequence<android.view.accessibility.AccessibilityNodeInfo> =
+            sequenceOf(node) + (0 until node.childCount).asSequence().flatMap { node.getChild(it)?.let(::nodes) ?: emptySequence() }
+        fun awaitPreview(): List<android.view.accessibility.AccessibilityNodeInfo> {
+            val deadline = android.os.SystemClock.uptimeMillis() + 8_000
+            while (android.os.SystemClock.uptimeMillis() < deadline) {
+                val tree = instrumentation.uiAutomation.rootInActiveWindow?.let(::nodes)?.toList().orEmpty()
+                if (tree.any { it.text?.toString() == entry.name } && tree.any { it.text?.toString() == "Import" }) return tree
+                android.os.SystemClock.sleep(50)
+            }
+            error("Photo preview did not appear")
+        }
+
+        try {
+            instrumentation.runOnMainSync {
+                browser = SonyMediaBrowser(activity, app.cameraderie.ui.UiKit(activity), {}, {}, {}).also {
+                    it.details(entry) { imported.countDown() }
+                }
+            }
+            val preview = awaitPreview()
+            val buttons = preview.filter { it.isClickable && it.className.toString().endsWith("Button") }
+            assertEquals(setOf("Import", "Close"), buttons.map { (it.contentDescription ?: it.text).toString() }.toSet())
+            val close = buttons.single { it.contentDescription?.toString() == "Close" }
+            val importButton = buttons.single { it.text?.toString() == "Import" }
+            val closeBounds = android.graphics.Rect().also(close::getBoundsInScreen)
+            val importBounds = android.graphics.Rect().also(importButton::getBoundsInScreen)
+            val title = preview.single { it.text?.toString() == entry.name }
+            val titleBounds = android.graphics.Rect().also(title::getBoundsInScreen)
+            assertTrue(closeBounds.left >= titleBounds.right)
+            assertTrue(closeBounds.bottom < importBounds.top)
+            assertTrue(close.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
+            instrumentation.waitForIdleSync()
+            val root = checkNotNull(instrumentation.uiAutomation.rootInActiveWindow)
+            assertFalse(nodes(root).any { it.text?.toString() == entry.name })
+            assertEquals(1L, imported.count)
+
+            instrumentation.runOnMainSync { checkNotNull(browser).details(entry) { imported.countDown() } }
+            assertTrue(awaitPreview().single { it.text?.toString() == "Import" }
+                .performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
+            assertTrue(imported.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        } finally {
+            instrumentation.runOnMainSync { browser?.close(); activity.finish() }
+        }
+    }
+
     @Test fun recordedPreviewReportsInterruptionAndClosesWhileLoading() {
         val instrumentation = NativeChecks.instance
         val activity = instrumentation.startActivitySync(Intent(context,app.cameraderie.MainActivity::class.java)
