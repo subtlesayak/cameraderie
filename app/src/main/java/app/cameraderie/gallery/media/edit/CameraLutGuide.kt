@@ -1,5 +1,6 @@
 package app.cameraderie.gallery.media.edit
 
+import app.cameraderie.gallery.media.CameraMetadataProto
 import java.io.File
 import java.io.RandomAccessFile
 import java.util.Locale
@@ -126,39 +127,9 @@ internal object VideoContainerMetadata {
             seek(offset)
             val packet = ByteArray(size).also(::readFully)
             // Action 6 CAM meta protobuf: stream description (2), colour settings (4), ColorMode (1).
-            val cameraData = protoField(packet, 2) ?: continue
-            val colour = protoField(cameraData, 4) ?: continue
+            val cameraData = CameraMetadataProto(packet).bytes(2) ?: continue
+            val colour = CameraMetadataProto(cameraData).bytes(4) ?: continue
             if (colour.contentEquals(byteArrayOf(8, 19))) return "D-Log M"
-        }
-        return null
-    }
-
-    private fun protoField(bytes: ByteArray, field: Int): ByteArray? {
-        var offset = 0
-        fun number(): Long? {
-            var value = 0L
-            for (shift in 0..56 step 7) {
-                if (offset >= bytes.size) return null
-                val byte = bytes[offset++].toInt() and 255
-                value = value or ((byte and 127).toLong() shl shift)
-                if (byte and 128 == 0) return value
-            }
-            return null
-        }
-        while (offset < bytes.size) {
-            val tag = number() ?: return null
-            val wire = (tag and 7).toInt()
-            val size = when (wire) {
-                0 -> { number() ?: return null; 0L }
-                1 -> 8L
-                2 -> number() ?: return null
-                5 -> 4L
-                else -> return null
-            }
-            if (size !in 0..(bytes.size - offset).toLong()) return null
-            val end = offset + size.toInt()
-            if (wire == 2 && tag shr 3 == field.toLong()) return bytes.copyOfRange(offset, end)
-            offset = end
         }
         return null
     }

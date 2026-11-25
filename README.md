@@ -42,18 +42,21 @@ Any camera that implements a protocol supported by Cameraderie should work with 
 | Nikon Z6III, Z8 | USB MTP/PTP | Candidates for the general USB path. |
 | Fujifilm X-T5, Canon EOS R50 | USB PTP or the camera’s photo transfer mode | Candidates for wired transfer testing. |
 | GoPro HERO12 Black, HERO13 Black | Open GoPro over Bluetooth and HTTP | Candidates for a separate adapter. |
-| Insta360 X4, X5 | USB file transfer | Candidates for Android’s storage picker and future adapter work. |
+| Insta360 X4 | Android’s file picker | Import of a native INSV verified on Android 12. Physical USB and card-reader checks are pending. |
+| Insta360 X5 | USB file transfer | Candidate for the same storage import workflow. |
 | Other cameras | USB PTP/MTP, USB storage, or a memory card | Use the connection mode exposed by the camera and supported by the phone. |
 
 The USB adapter discovers standard PTP/MTP interfaces across camera brands. Wireless browsing and shooting controls depend on each camera’s protocol and capabilities. [Protocol analysis and hardware verification](docs/COMPATIBILITY.md)
 
 ## Tested
 
-- **Android device.** 40 native checks passed on an Android 12 emulator. The earlier Galaxy S24 FE build also passed 39 native checks.
-- **Build.** 602 JVM tests passed. Debug and release APKs assembled, and lint reported zero errors. [Build verification](docs/BUILD.md#verification)
+- **Android.** 47 native checks passed on an Android 12 emulator. The earlier Galaxy S24 FE build passed 39 native checks.
+- **Build.** 612 JVM tests passed, and debug and Android test APKs assembled. Release assembly and lint results are in the build record. [Build verification](docs/BUILD.md#verification)
 - **Sony α7 III.** On a Galaxy S24 FE running Android 17, Cameraderie connected by Wi-Fi QR, browsed 789 entries, and reconnected from its saved camera entry. Original, 2M, and VGA JPEG imports and a 720p video proxy passed independent saved-file checksum checks over Wi-Fi. USB PC Remote displayed live view and verified autofocus, recording start and stop, and the gallery lock during recording. USB MTP imported a 4K MP4 with the original filename, capture date, and verified checksum. [Hardware test details](docs/COMPATIBILITY.md#sony-α7-iii-hardware-test)
 
 - **DJI Osmo Action 6.** Cameraderie verified Bluetooth shooting controls, the gallery lock during recording, both Wi-Fi storage catalogues, playback of a fresh clip’s proxy, JPEG and 4K original imports, and a paused Wi-Fi download that resumed with a matching checksum. The same D-Log M clip also passed crop, trim, and 10-bit Rec.709 export checks on the Galaxy. [Hardware test details](docs/COMPATIBILITY.md#dji-osmo-action-6-hardware-test) · [Editor test details](docs/COMPATIBILITY.md#action-6-editor-verification)
+
+- **Insta360 X4.** Android’s file picker imported a 1.18 GB native INSV with the original filename and matching SHA-256. Cameraderie identified the model and capture time and reopened the clip’s shoot offline. [Project verification](docs/WORKFLOW.md#emulator-verification)
 
 ## Get the app
 

@@ -27,19 +27,27 @@ internal data class ImportCaptureMetadata(
 
     companion object {
         fun readDocument(file: AlbumMediaFile, staged: File): ImportCaptureMetadata = when {
-            file.image || file.name.endsWith(".insp", ignoreCase = true) ->
-                read(null) { staged.inputStream() }
-            file.video || file.name.endsWith(".insv", ignoreCase = true) -> {
-                val camera = CameraLutGuide.read(staged, null).camera
-                val time = runCatching {
-                    MediaMetadataRetriever().use { reader ->
-                        reader.setDataSource(staged.path)
-                        CameraCaptureTime.parse(reader.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE))
-                    }
-                }.getOrNull()
-                ImportCaptureMetadata(time, time?.let { "VIDEO_CONTAINER" }, cameraModel = camera)
+            file.name.endsWith(".insp", ignoreCase = true) -> {
+                val exif = read(null) { staged.inputStream() }
+                val native = Insta360CaptureMetadata.read(staged)
+                exif.copy(time = exif.time ?: native?.time, source = exif.source ?: native?.source,
+                    cameraModel = exif.cameraModel ?: native?.cameraModel)
             }
+            file.image -> read(null) { staged.inputStream() }
+            file.name.endsWith(".insv", ignoreCase = true) -> readVideo(staged, Insta360CaptureMetadata.read(staged))
+            file.video -> readVideo(staged)
             else -> ImportCaptureMetadata(null, null)
+        }
+
+        private fun readVideo(staged: File, native: ImportCaptureMetadata? = null): ImportCaptureMetadata {
+            val camera = native?.cameraModel ?: CameraLutGuide.read(staged, null).camera
+            val time = native?.time ?: runCatching {
+                MediaMetadataRetriever().use { reader ->
+                    reader.setDataSource(staged.path)
+                    CameraCaptureTime.parse(reader.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE))
+                }
+            }.getOrNull()
+            return ImportCaptureMetadata(time, native?.source ?: time?.let { "VIDEO_CONTAINER" }, cameraModel = camera)
         }
 
         private fun cameraFrom(exif: ExifInterface): String? {

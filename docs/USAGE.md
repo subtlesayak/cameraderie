@@ -6,7 +6,7 @@
 2. Choose **Import to phone** to save photos and videos in `DCIM/Cameraderie` and other supported files in `Download/Cameraderie`. Use **Import to folder** to pick a destination.
 3. Open **Library** to see the saved copy, capture information, and import receipt. Use **Share** to send selected files through Android.
 
-File import works independently of camera brand. Supported files include JPEG, HEIF, TIFF, common camera RAW formats, and MP4, MOV, and AVCHD video. You can also save WAV, M4A, MP3, and FLAC audio, GPX tracks, and Insta360 INSV and INSP files. INSV and INSP are preserved for use in compatible software. Thumbnail and playback support depend on the file format and the phone.
+File import works independently of camera brand. Supported files include JPEG, HEIF, TIFF, common camera RAW formats, and MP4, MOV, and AVCHD video. You can also save WAV, M4A, MP3, and FLAC audio, GPX tracks, and Insta360 INSV and INSP files. INSV and INSP are preserved for use in compatible software. Cameraderie can read the Insta360 camera model and capture time from the original file. If the camera recorded time without a timezone, Library shows it as camera time. Thumbnail and playback support depend on the file format and the phone.
 
 ## Connect directly to a camera
 
